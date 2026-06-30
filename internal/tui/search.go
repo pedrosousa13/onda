@@ -81,7 +81,7 @@ func (m Model) viewSearch() string {
 	case m.loading:
 		b.WriteString(m.st.Meta.Render("  "+m.sp.View()+" searching…") + "\n")
 	case len(m.stations) == 0:
-		b.WriteString(m.st.Meta.Render("  no matches for “"+q+"” — press R to refresh from Radio Browser") + "\n")
+		b.WriteString(m.st.Meta.Render("  no matches for “"+q+"”") + "\n")
 	default:
 		const preview = 8
 		start, end := windowBounds(m.cursor, len(m.stations), preview)
