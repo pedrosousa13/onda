@@ -119,3 +119,43 @@ func (s *Store) AddCustom(st domain.Station) error {
 }
 
 func (s *Store) MarkerPath(name string) string { return filepath.Join(s.dir, "."+name) }
+
+func (s *Store) IsFavorite(st domain.Station) (bool, error) {
+	favs, err := s.Favorites()
+	if err != nil {
+		return false, err
+	}
+	for _, e := range favs {
+		if stationKey(e) == stationKey(st) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *Store) SaveQuality(q domain.QualityPref) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.Quality = string(q)
+	return s.SaveConfig(c)
+}
+
+func (s *Store) SaveTracking(t string) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.Tracking = t
+	return s.SaveConfig(c)
+}
+
+func (s *Store) SaveHistory(h bool) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.HistoryEnabled = h
+	return s.SaveConfig(c)
+}
