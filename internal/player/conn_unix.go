@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func ipcAddress() string {
@@ -28,7 +29,7 @@ func dialWithRetry(addr string) (net.Conn, error) {
 		select {
 		case <-ctx.Done():
 			return nil, errors.New("timed out connecting to mpv IPC socket")
-		default:
+		case <-time.After(50 * time.Millisecond): // brief backoff, matches the Windows path
 		}
 	}
 }
