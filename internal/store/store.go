@@ -117,3 +117,5 @@ func (s *Store) AddCustom(st domain.Station) error {
 	}
 	return s.writeList("custom.json", append(list, st))
 }
+
+func (s *Store) MarkerPath(name string) string { return filepath.Join(s.dir, "."+name) }
