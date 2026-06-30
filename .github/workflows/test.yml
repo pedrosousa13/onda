@@ -1,0 +1,21 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.24" }
+      # Race detector needs cgo; the runner has a C toolchain.
+      - run: go test -race ./...
+      - run: go vet ./...
+      # Verify the platform-split player IPC compiles on every target OS.
+      - run: GOOS=windows go build ./...
+      - run: GOOS=darwin go build ./...
+      - run: GOOS=linux go build ./...
