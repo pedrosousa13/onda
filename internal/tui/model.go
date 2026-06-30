@@ -352,6 +352,17 @@ func (m Model) playSelected() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	st := m.stations[m.cursor]
+
+	// Re-playing the station that's already playing keeps the bitrate you picked
+	// with the [ ] chooser; switching to a different station uses your preference.
+	if m.isPlaying && favKey(st) == favKey(m.playing) && m.varIdx >= 0 && m.varIdx < len(m.playing.Variants) {
+		v := m.playing.Variants[m.varIdx]
+		_ = m.player.Play(v.URL)
+		m.nowTitle = ""
+		m.status = "playing " + m.playing.Name + " · " + v.Quality()
+		return m.startConnecting()
+	}
+
 	if v, ok := st.SelectVariant(m.quality); ok {
 		m.playing = st
 		m.varIdx = indexOfVariant(st.Variants, v)
