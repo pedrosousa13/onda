@@ -93,7 +93,7 @@ HTML scraping — possible later).
 
 ## Stack
 
-- **Language/UI:** Go + Bubble Tea (Elm architecture) + Lip Gloss (styling).
+- **Language/UI:** Go 1.24+ + Bubble Tea (Elm architecture) + Lip Gloss (styling).
   Rationale: beautiful TUIs with modest effort, **single static binary**, strong
   HTTP/concurrency for streaming, excellent cross-compilation and distribution.
 - **Audio:** a **headless `mpv` subprocess** controlled over its **JSON IPC channel**
