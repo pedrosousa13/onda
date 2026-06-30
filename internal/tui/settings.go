@@ -2,7 +2,9 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -26,16 +28,36 @@ func (m Model) updateSettings(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.store != nil {
 			_ = m.store.SaveHistory(m.history)
 		}
+	case "4":
+		m = m.cycleTheme()
+		if m.store != nil {
+			_ = m.store.SaveTheme(m.themeName)
+		}
 	}
 	return m, nil
 }
 
 func (m Model) viewSettings() string {
-	b := titleStyle.Render("settings") + "\n\n"
-	b += fmt.Sprintf("1) quality:           %s\n", m.quality)
-	b += fmt.Sprintf("2) popularity tracking: %s\n", m.tracking)
-	b += fmt.Sprintf("3) play history:      %v\n\n", m.history)
-	b += statusStyle.Render("press 1/2/3 to change · esc: back") + "\n"
-	b += statusStyle.Render("tracking 'never' (default) reports nothing about what you play") + "\n"
-	return b
+	var b strings.Builder
+	b.WriteString(m.header("settings"))
+	b.WriteString("\n\n")
+
+	row := func(key, label, value string) string {
+		pad := 22 - lipgloss.Width(label)
+		if pad < 1 {
+			pad = 1
+		}
+		return "  " + m.st.Key.Render(key) + "  " + m.st.Item.Render(label) +
+			strings.Repeat(" ", pad) + m.st.Crumb.Render(value)
+	}
+
+	b.WriteString(row("1", "audio quality", string(m.quality)) + "\n")
+	b.WriteString(row("2", "popularity tracking", m.tracking) + "\n")
+	b.WriteString(row("3", "play history", fmt.Sprintf("%v", m.history)) + "\n")
+	b.WriteString(row("4", "theme", m.themeName) + "\n\n")
+
+	b.WriteString(m.st.Help.Render("  press a number to change · ") +
+		m.st.Key.Render("esc") + m.st.Help.Render(" back") + "\n")
+	b.WriteString(m.st.Help.Render("  tracking ‘never’ (default) reports nothing about what you play") + "\n")
+	return b.String()
 }

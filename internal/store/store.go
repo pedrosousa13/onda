@@ -159,3 +159,12 @@ func (s *Store) SaveHistory(h bool) error {
 	c.HistoryEnabled = h
 	return s.SaveConfig(c)
 }
+
+func (s *Store) SaveTheme(theme string) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.Theme = theme
+	return s.SaveConfig(c)
+}

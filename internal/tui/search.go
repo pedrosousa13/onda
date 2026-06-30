@@ -1,6 +1,10 @@
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 func (m Model) updateSearch(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
@@ -12,7 +16,7 @@ func (m Model) updateSearch(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		q := m.search.Value()
 		m.view = viewBrowse
 		m.search.Blur()
-		m.status = "searching: " + q
+		m.status = "searching “" + q + "”"
 		return m, searchCmd(m.dir, q)
 	}
 	var cmd tea.Cmd
@@ -21,7 +25,11 @@ func (m Model) updateSearch(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) viewSearch() string {
-	return titleStyle.Render("search") + "\n\n" +
-		m.search.View() + "\n\n" +
-		statusStyle.Render("enter: search · esc: cancel")
+	var b strings.Builder
+	b.WriteString(m.header("search"))
+	b.WriteString("\n\n")
+	b.WriteString("  " + m.search.View() + "\n\n")
+	b.WriteString(m.st.Help.Render("  ") + m.st.Key.Render("⏎") + m.st.Help.Render(" search  ·  ") +
+		m.st.Key.Render("esc") + m.st.Help.Render(" cancel") + "\n")
+	return b.String()
 }
