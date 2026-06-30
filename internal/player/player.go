@@ -1,0 +1,136 @@
+package player
+
+import (
+	"bufio"
+	"errors"
+	"net"
+	"os/exec"
+	"sync"
+	"time"
+)
+
+const defaultDialTimeout = 3 * time.Second
+
+// Event is emitted as playback state changes.
+type Event struct {
+	Kind  string // "title" | "playing" | "idle" | "error"
+	Title string // set when Kind=="title"
+	Err   error  // set when Kind=="error"
+}
+
+type Options struct {
+	Binary string // defaults to "mpv"
+}
+
+type Player struct {
+	cmd    *exec.Cmd
+	conn   net.Conn
+	events chan Event
+	mu     sync.Mutex
+	id     int
+	sock   string
+}
+
+// New verifies mpv exists, starts it headless, and connects to its IPC socket.
+func New(opts Options) (*Player, error) {
+	bin := opts.Binary
+	if bin == "" {
+		bin = "mpv"
+	}
+	if _, err := exec.LookPath(bin); err != nil {
+		return nil, errors.New("mpv not found on PATH: install mpv (e.g. `brew install mpv`, or `scoop install mpv` on Windows)")
+	}
+	// ipcAddress() is platform-specific (Unix socket path or Windows pipe name).
+	addr := ipcAddress()
+	cleanupIPC(addr) // remove any stale socket file (no-op on Windows)
+	cmd := exec.Command(bin,
+		"--idle=yes", "--no-video", "--no-terminal",
+		"--input-ipc-server="+addr,
+	)
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	conn, err := dialWithRetry(addr) // platform-specific dialer
+	if err != nil {
+		_ = cmd.Process.Kill()
+		return nil, err
+	}
+	p := &Player{cmd: cmd, conn: conn, events: make(chan Event, 16), sock: addr}
+	if err := p.observe(); err != nil {
+		_ = p.Close()
+		return nil, err
+	}
+	go p.readLoop()
+	return p, nil
+}
+
+func (p *Player) Events() <-chan Event { return p.events }
+
+func (p *Player) Play(url string) error { return p.send("loadfile", url) }
+func (p *Player) Stop() error           { return p.send("stop") }
+func (p *Player) Pause() error          { return p.send("set_property", "pause", true) }
+func (p *Player) Resume() error         { return p.send("set_property", "pause", false) }
+func (p *Player) Volume(pct int) error  { return p.send("set_property", "volume", pct) }
+
+func (p *Player) observe() error {
+	if err := p.send("observe_property", 1, "media-title"); err != nil {
+		return err
+	}
+	return p.send("observe_property", 2, "core-idle")
+}
+
+func (p *Player) send(args ...any) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.id++
+	b, err := encodeCommand(p.id, args...)
+	if err != nil {
+		return err
+	}
+	_, err = p.conn.Write(b)
+	return err
+}
+
+func (p *Player) readLoop() {
+	sc := bufio.NewScanner(p.conn)
+	for sc.Scan() {
+		f, err := parseLine(sc.Bytes())
+		if err != nil || f.Event == "" {
+			continue
+		}
+		switch {
+		case f.Event == "property-change" && f.Name == "media-title":
+			if title, ok := f.Data.(string); ok {
+				p.emit(Event{Kind: "title", Title: title})
+			}
+		case f.Event == "property-change" && f.Name == "core-idle":
+			if idle, ok := f.Data.(bool); ok && idle {
+				p.emit(Event{Kind: "idle"})
+			} else {
+				p.emit(Event{Kind: "playing"})
+			}
+		case f.Event == "end-file":
+			p.emit(Event{Kind: "idle"})
+		}
+	}
+	close(p.events)
+}
+
+func (p *Player) emit(e Event) {
+	select {
+	case p.events <- e:
+	default: // drop if the consumer is slow; UI only needs the latest
+	}
+}
+
+func (p *Player) Close() error {
+	if p.conn != nil {
+		_ = p.conn.Close()
+	}
+	if p.cmd != nil && p.cmd.Process != nil {
+		_ = p.cmd.Process.Kill()
+		_, _ = p.cmd.Process.Wait()
+	}
+	cleanupIPC(p.sock) // platform-specific; removes the socket file on Unix, no-op on Windows
+	return nil
+}

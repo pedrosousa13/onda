@@ -32,3 +32,11 @@ func TestParseLineIgnoresReplies(t *testing.T) {
 		t.Fatalf("reply should have empty Event, got %q", f.Event)
 	}
 }
+
+func TestNewRequiresMpv(t *testing.T) {
+	// With a bogus binary name, New must fail fast and not leak a process.
+	_, err := New(Options{Binary: "definitely-not-mpv-xyz"})
+	if err == nil {
+		t.Fatal("expected error when mpv binary is missing")
+	}
+}
