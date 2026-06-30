@@ -1,6 +1,10 @@
 package tui
 
 import (
+	"strconv"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pedrosousa13/radio/internal/domain"
 )
@@ -20,19 +24,52 @@ type Player interface {
 	Stop() error
 }
 
+// Store is the persistence slice the TUI needs.
+type Store interface {
+	Favorites() ([]domain.Station, error)
+	AddFavorite(domain.Station) error
+	RemoveFavorite(domain.Station) error
+	IsFavorite(domain.Station) (bool, error)
+	AddCustom(domain.Station) error
+	SaveQuality(domain.QualityPref) error
+	SaveTracking(string) error
+	SaveHistory(bool) error
+}
+
 type Model struct {
 	dir      Searcher
 	player   Player
+	store    Store
 	view     view
 	stations []domain.Station
 	cursor   int
 	status   string
 	nowTitle string
 	quality  domain.QualityPref
+	tracking string
+	history  bool
+
+	search   textinput.Model
+	addName  textinput.Model
+	addURL   textinput.Model
+	addBr    textinput.Model
+	addFocus int // 0=name, 1=url, 2=bitrate
 }
 
-func New(dir Searcher, p Player, quality domain.QualityPref) Model {
-	return Model{dir: dir, player: p, quality: quality}
+func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool) Model {
+	search := textinput.New()
+	search.Placeholder = "search…"
+	name := textinput.New()
+	name.Placeholder = "name"
+	url := textinput.New()
+	url.Placeholder = "https://stream-url"
+	br := textinput.New()
+	br.Placeholder = "bitrate kbps (optional)"
+	return Model{
+		dir: dir, player: p, store: st,
+		quality: quality, tracking: tracking, history: history,
+		search: search, addName: name, addURL: url, addBr: br,
+	}
 }
 
 func (m Model) Init() tea.Cmd { return searchCmd(m.dir, "") }
@@ -56,6 +93,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Dedicated views capture their own keys.
+	switch m.view {
+	case viewSearch:
+		return m.updateSearch(k)
+	case viewAdd:
+		return m.updateAdd(k)
+	case viewSettings:
+		return m.updateSettings(k)
+	}
+
+	// Browse + favorites: list navigation.
 	switch k.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
@@ -68,24 +116,168 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.cursor--
 		}
 	case "enter":
-		if len(m.stations) == 0 {
-			return m, nil
-		}
-		st := m.stations[m.cursor]
-		if v, ok := st.SelectVariant(m.quality); ok {
-			_ = m.player.Play(v.URL)
-			m.status = "playing: " + st.Name
-		}
+		return m.playSelected()
 	case "s":
 		_ = m.player.Stop()
 		m.status = "stopped"
+	case "f":
+		return m.toggleFavorite()
+	case "/":
+		m.view = viewSearch
+		m.search.SetValue("")
+		m.search.Focus()
+		return m, nil
+	case "F":
+		return m.showFavorites()
+	case "a":
+		m.view = viewAdd
+		m.addFocus = 0
+		m.addName.SetValue("")
+		m.addURL.SetValue("")
+		m.addBr.SetValue("")
+		m.focusAdd()
+		return m, nil
+	case ",":
+		m.view = viewSettings
+		return m, nil
+	case "esc":
+		m.view = viewBrowse
+		return m, searchCmd(m.dir, "")
 	}
 	return m, nil
 }
 
+func (m Model) playSelected() (tea.Model, tea.Cmd) {
+	if len(m.stations) == 0 {
+		return m, nil
+	}
+	st := m.stations[m.cursor]
+	if v, ok := st.SelectVariant(m.quality); ok {
+		_ = m.player.Play(v.URL)
+		m.status = "playing: " + st.Name
+	} else {
+		m.status = "no playable stream for " + st.Name
+	}
+	return m, nil
+}
+
+func (m Model) toggleFavorite() (Model, tea.Cmd) {
+	if len(m.stations) == 0 {
+		return m, nil
+	}
+	st := m.stations[m.cursor]
+	fav, _ := m.store.IsFavorite(st)
+	if fav {
+		_ = m.store.RemoveFavorite(st)
+		m.status = "unfavorited: " + st.Name
+	} else {
+		_ = m.store.AddFavorite(st)
+		m.status = "favorited: " + st.Name
+	}
+	return m, nil
+}
+
+func (m Model) showFavorites() (tea.Model, tea.Cmd) {
+	favs, err := m.store.Favorites()
+	if err != nil {
+		m.status = "error loading favorites: " + err.Error()
+		return m, nil
+	}
+	m.view = viewFavorites
+	m.stations = favs
+	m.cursor = 0
+	return m, nil
+}
+
+func (m Model) cycleQuality() Model {
+	switch m.quality {
+	case domain.QualityHighest:
+		m.quality = domain.QualityBalanced
+	case domain.QualityBalanced:
+		m.quality = domain.QualityLowest
+	default:
+		m.quality = domain.QualityHighest
+	}
+	return m
+}
+
+func (m Model) cycleTracking() Model {
+	switch m.tracking {
+	case "never":
+		m.tracking = "opt-in"
+	case "opt-in":
+		m.tracking = "opt-out"
+	default:
+		m.tracking = "never"
+	}
+	return m
+}
+
+func (m *Model) focusAdd() {
+	m.addName.Blur()
+	m.addURL.Blur()
+	m.addBr.Blur()
+	switch m.addFocus {
+	case 0:
+		m.addName.Focus()
+	case 1:
+		m.addURL.Focus()
+	case 2:
+		m.addBr.Focus()
+	}
+}
+
+func (m *Model) blurAdd() {
+	m.addName.Blur()
+	m.addURL.Blur()
+	m.addBr.Blur()
+}
+
+func (m Model) submitAdd() (tea.Model, tea.Cmd) {
+	name := strings.TrimSpace(m.addName.Value())
+	url := strings.TrimSpace(m.addURL.Value())
+	if name == "" || url == "" {
+		m.status = "name and URL are required"
+		return m, nil
+	}
+	br, _ := strconv.Atoi(strings.TrimSpace(m.addBr.Value()))
+	st := domain.Station{
+		Name:    name,
+		Country: "Custom",
+		Variants: []domain.StreamVariant{{URL: url, Bitrate: br}},
+	}
+	if err := m.store.AddCustom(st); err != nil {
+		m.status = "error saving: " + err.Error()
+		return m, nil
+	}
+	m.view = viewBrowse
+	m.blurAdd()
+	m.status = "added: " + name
+	return m, nil
+}
+
 func (m Model) View() string {
-	var b string
-	b += titleStyle.Render("radio — wander the world") + "\n\n"
+	switch m.view {
+	case viewSearch:
+		return m.viewSearch()
+	case viewAdd:
+		return m.viewAdd()
+	case viewSettings:
+		return m.viewSettings()
+	default:
+		return m.viewList()
+	}
+}
+
+func (m Model) viewList() string {
+	title := "radio — wander the world"
+	if m.view == viewFavorites {
+		title = "radio — favorites"
+	}
+	b := titleStyle.Render(title) + "\n\n"
+	if len(m.stations) == 0 {
+		b += statusStyle.Render("  (no stations)") + "\n"
+	}
 	for i, s := range m.stations {
 		line := s.Name + "  " + s.Country
 		if i == m.cursor {
@@ -100,6 +292,6 @@ func (m Model) View() string {
 		b += "♪ " + m.nowTitle + "\n"
 	}
 	b += statusStyle.Render(m.status) + "\n"
-	b += statusStyle.Render("↑/↓ move · enter play · s stop · q quit") + "\n"
+	b += statusStyle.Render("↑/↓ move · enter play · s stop · f fav · F favorites · / search · a add · , settings · q quit") + "\n"
 	return b
 }
