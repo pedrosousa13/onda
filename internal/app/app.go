@@ -69,6 +69,8 @@ func Run() error {
 				prog.Send(tui.PlayingMsg())
 			case "idle":
 				prog.Send(tui.IdleMsg())
+			case "ended":
+				prog.Send(tui.EndedMsg())
 			case "error":
 				prog.Send(tui.PlayErrMsg(e.Err))
 			}

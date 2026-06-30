@@ -32,10 +32,14 @@ func applyUpdateCmd(st update.Status) tea.Cmd {
 // playback state events bridged from the player.
 type playingMsg struct{}
 type idleMsg struct{}
+type endedMsg struct{} // the stream ended (eof/stop), not just a buffering pause
 type playErrMsg struct{ err error }
 
 // connectTimeoutMsg fires after a play attempt; attempt guards against stale ticks.
 type connectTimeoutMsg struct{ attempt int }
+
+// reconnectMsg fires after the reconnect backoff; seq guards against stale ticks.
+type reconnectMsg struct{ seq int }
 
 // searchDebounceMsg fires after typing pauses; seq guards against stale ticks.
 type searchDebounceMsg struct{ seq int }
@@ -74,4 +78,5 @@ func TitleMsg(s string) tea.Msg { return titleMsg{title: s} }
 // Playback event constructors for the app event bridge.
 func PlayingMsg() tea.Msg          { return playingMsg{} }
 func IdleMsg() tea.Msg             { return idleMsg{} }
+func EndedMsg() tea.Msg            { return endedMsg{} }
 func PlayErrMsg(err error) tea.Msg { return playErrMsg{err: err} }

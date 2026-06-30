@@ -13,7 +13,7 @@ const defaultDialTimeout = 3 * time.Second
 
 // Event is emitted as playback state changes.
 type Event struct {
-	Kind  string // "title" | "playing" | "idle" | "error"
+	Kind  string // "title" | "playing" | "idle" | "ended" | "error"
 	Title string // set when Kind=="title"
 	Err   error  // set when Kind=="error"
 }
@@ -113,7 +113,9 @@ func (p *Player) readLoop() {
 			if f.Reason == "error" {
 				p.emit(Event{Kind: "error", Err: errors.New("stream failed to load")})
 			} else {
-				p.emit(Event{Kind: "idle"})
+				// A real end of the stream (eof/stop), distinct from the
+				// transient core-idle that fires while buffering.
+				p.emit(Event{Kind: "ended"})
 			}
 		}
 	}

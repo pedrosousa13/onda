@@ -31,10 +31,17 @@ const (
 	phaseConnecting
 	phasePlaying
 	phaseFailed
+	phaseReconnecting
 )
 
 // connectTimeout marks a play attempt as failed if it never starts playing.
 const connectTimeout = 12 * time.Second
+
+// Reconnect policy: retry a dropped stream a few times with growing backoff.
+const (
+	maxReconnect     = 5
+	reconnectBackoff = 2 * time.Second
+)
 
 type Player interface {
 	Play(url string) error
@@ -69,9 +76,11 @@ type Model struct {
 	playing   domain.Station
 	varIdx    int // index into playing.Variants currently streaming
 	isPlaying bool
-	phase       playbackPhase
-	playErr     string // message shown when phase == phaseFailed
-	playAttempt int    // monotonic; guards stale connect timeouts
+	phase        playbackPhase
+	playErr      string // message shown when phase == phaseFailed
+	playAttempt  int    // monotonic; guards stale connect timeouts
+	reconnectTry int    // consecutive reconnect attempts since the user pressed play
+	reconnectSeq int    // monotonic; guards stale reconnect ticks
 	quality   domain.QualityPref
 	tracking  string
 	history   bool
@@ -188,9 +197,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.isPlaying = false
 		}
 		return m, nil
+	case endedMsg:
+		// The stream ended while we were playing → treat as a drop and try to
+		// reconnect. Ends that arrive in any other phase (e.g. the previous
+		// file ending when we switch stations) are not drops.
+		if m.phase == phasePlaying {
+			if nm, cmd, ok := m.tryReconnect(); ok {
+				return nm, cmd
+			}
+			m.phase = phaseIdle
+			m.isPlaying = false
+		}
+		return m, nil
 	case playErrMsg:
+		// A failure mid-playback is a drop worth reconnecting; a failure while
+		// first connecting is reported as-is.
+		if m.phase == phasePlaying {
+			if nm, cmd, ok := m.tryReconnect(); ok {
+				return nm, cmd
+			}
+		}
 		m.phase = phaseFailed
 		m.playErr = "couldn't connect — the stream may be offline"
+		m.isPlaying = false
 		return m, nil
 	case connectTimeoutMsg:
 		if msg.attempt == m.playAttempt && m.phase == phaseConnecting {
@@ -198,6 +227,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.playErr = "still connecting — the stream may be slow or offline"
 		}
 		return m, nil
+	case reconnectMsg:
+		if msg.seq != m.reconnectSeq || m.phase != phaseReconnecting {
+			return m, nil // stale tick, or the user moved on
+		}
+		url := m.currentURL()
+		if url == "" {
+			m.phase = phaseFailed
+			m.playErr = "lost connection"
+			return m, nil
+		}
+		_ = m.player.Play(url)
+		return m.startConnecting()
 	case updateMsg:
 		m.update = msg.status
 		return m, nil
@@ -388,6 +429,7 @@ func (m Model) playSelected() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	st := m.stations[m.cursor]
+	m.reconnectTry = 0 // fresh playback gets a full reconnect budget
 
 	// Re-playing the station that's already playing keeps the bitrate you picked
 	// with the [ ] chooser; switching to a different station uses your preference.
@@ -422,6 +464,40 @@ func (m Model) startConnecting() (tea.Model, tea.Cmd) {
 	return m, tea.Tick(connectTimeout, func(time.Time) tea.Msg {
 		return connectTimeoutMsg{attempt: attempt}
 	})
+}
+
+// currentURL is the stream URL of the variant currently playing, or "".
+func (m Model) currentURL() string {
+	if m.varIdx >= 0 && m.varIdx < len(m.playing.Variants) {
+		return m.playing.Variants[m.varIdx].URL
+	}
+	return ""
+}
+
+// tryReconnect handles an unexpected drop while playing: it schedules a backoff
+// reconnect, or once the retry budget is spent, fails. ok is false only when
+// there's no stream URL to reconnect to (caller picks the terminal state).
+func (m Model) tryReconnect() (Model, tea.Cmd, bool) {
+	if m.currentURL() == "" {
+		return m, nil, false
+	}
+	if m.reconnectTry >= maxReconnect {
+		m.phase = phaseFailed
+		m.playErr = "lost connection — gave up after several retries"
+		m.isPlaying = false
+		m.reconnectTry = 0
+		return m, nil, true
+	}
+	m.reconnectTry++
+	m.reconnectSeq++
+	m.phase = phaseReconnecting
+	m.isPlaying = false
+	m.status = "reconnecting…"
+	seq := m.reconnectSeq
+	delay := time.Duration(m.reconnectTry) * reconnectBackoff
+	return m, tea.Tick(delay, func(time.Time) tea.Msg {
+		return reconnectMsg{seq: seq}
+	}), true
 }
 
 // changeVariant switches the playing station to another available bitrate.
