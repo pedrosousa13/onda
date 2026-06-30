@@ -52,7 +52,7 @@ func New(opts Options) (*Player, error) {
 	}
 	conn, err := dialWithRetry(addr) // platform-specific dialer
 	if err != nil {
-		_ = cmd.Process.Kill()
+		reap(cmd)
 		return nil, err
 	}
 	p := &Player{cmd: cmd, conn: conn, events: make(chan Event, 16), sock: addr}
@@ -127,10 +127,16 @@ func (p *Player) Close() error {
 	if p.conn != nil {
 		_ = p.conn.Close()
 	}
-	if p.cmd != nil && p.cmd.Process != nil {
-		_ = p.cmd.Process.Kill()
-		_, _ = p.cmd.Process.Wait()
-	}
+	reap(p.cmd)
 	cleanupIPC(p.sock) // platform-specific; removes the socket file on Unix, no-op on Windows
 	return nil
+}
+
+// reap kills mpv and waits for it, so no zombie process is left behind.
+func reap(cmd *exec.Cmd) {
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	_ = cmd.Process.Kill()
+	_, _ = cmd.Process.Wait()
 }
