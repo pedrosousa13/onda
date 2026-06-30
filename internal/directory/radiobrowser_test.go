@@ -2,8 +2,10 @@ package directory
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -53,5 +55,33 @@ func TestRadioBrowserFallsOverMirrors(t *testing.T) {
 	})
 	if _, err := rb.Search(context.Background(), "kexp"); err != nil {
 		t.Fatalf("expected fallback to succeed, got %v", err)
+	}
+}
+
+type dumpStubRT struct{ body string }
+
+func (s dumpStubRT) RoundTrip(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(strings.NewReader(s.body)),
+		Header:     make(http.Header),
+	}, nil
+}
+
+func TestFetchAllGroupsDump(t *testing.T) {
+	const dump = `[
+	  {"name":"Radio Eins","url_resolved":"http://a","country":"Germany","bitrate":128,"votes":42},
+	  {"name":"Jazz FM","url_resolved":"http://b","country":"United Kingdom","bitrate":64,"votes":3}
+	]`
+	rb := NewRadioBrowser(RBOptions{
+		Mirrors: []string{"http://example.test"},
+		Client:  &http.Client{Transport: dumpStubRT{body: dump}},
+	})
+	out, err := rb.FetchAll(context.Background())
+	if err != nil {
+		t.Fatalf("FetchAll: %v", err)
+	}
+	if len(out) != 2 {
+		t.Fatalf("expected 2 stations, got %d", len(out))
 	}
 }

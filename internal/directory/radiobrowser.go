@@ -178,6 +178,16 @@ func (rb *RadioBrowser) getWithFallback(ctx context.Context, path string) ([]byt
 	return nil, lastErr
 }
 
+// FetchAll downloads the entire station list to build the local corpus. The
+// HTTP transport negotiates gzip transparently, so the transfer is compressed.
+func (rb *RadioBrowser) FetchAll(ctx context.Context) ([]domain.Station, error) {
+	raw, err := rb.fetchRaw(ctx, "/json/stations?hidebroken=true")
+	if err != nil {
+		return nil, err
+	}
+	return GroupRecords(rbToRecords(raw)), nil
+}
+
 func rbToRecords(raw []rbStation) []record {
 	recs := make([]record, 0, len(raw))
 	for _, s := range raw {
