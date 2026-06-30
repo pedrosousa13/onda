@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # GitHub Actions — keeps the workflow actions current (and on a supported
+  # Node runtime). "ci:" prefix so release-please doesn't treat bumps as releases.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+
+  # Go modules — routine version currency. Security fixes already arrive via
+  # Dependabot security updates regardless of this block.
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
