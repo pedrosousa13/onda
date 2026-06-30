@@ -142,6 +142,65 @@ func TestConnectTimeoutGuard(t *testing.T) {
 	}
 }
 
+func TestReconnectSchedulesOnDrop(t *testing.T) {
+	st := domain.Station{Name: "X", Variants: []domain.StreamVariant{{URL: "u", Bitrate: 128}}}
+	m := Model{phase: phasePlaying, isPlaying: true, playing: st, varIdx: 0, player: &fakePlayer{}}
+	out, cmd := m.Update(endedMsg{})
+	got := out.(Model)
+	if got.phase != phaseReconnecting || got.reconnectTry != 1 || cmd == nil {
+		t.Fatalf("drop while playing should schedule a reconnect, got phase=%d try=%d hasCmd=%v",
+			got.phase, got.reconnectTry, cmd != nil)
+	}
+}
+
+func TestReconnectIgnoresEndWhenNotPlaying(t *testing.T) {
+	// The previous file ending as we connect to a new station is not a drop.
+	st := domain.Station{Name: "X", Variants: []domain.StreamVariant{{URL: "u"}}}
+	m := Model{phase: phaseConnecting, playing: st, varIdx: 0, player: &fakePlayer{}}
+	if got := mustModel(m.Update(endedMsg{})); got.phase != phaseConnecting {
+		t.Fatalf("ended while connecting should be ignored, got phase=%d", got.phase)
+	}
+}
+
+func TestReconnectGivesUpAfterMax(t *testing.T) {
+	st := domain.Station{Name: "X", Variants: []domain.StreamVariant{{URL: "u"}}}
+	m := Model{phase: phasePlaying, isPlaying: true, playing: st, varIdx: 0,
+		reconnectTry: maxReconnect, player: &fakePlayer{}}
+	got := mustModel(m.Update(endedMsg{}))
+	if got.phase != phaseFailed || got.playErr == "" {
+		t.Fatalf("should give up after max retries, got phase=%d err=%q", got.phase, got.playErr)
+	}
+}
+
+func TestReconnectTickReplaysCurrentURL(t *testing.T) {
+	fp := &fakePlayer{}
+	st := domain.Station{Name: "X", Variants: []domain.StreamVariant{{URL: "u", Bitrate: 128}}}
+	m := Model{phase: phaseReconnecting, playing: st, varIdx: 0, reconnectSeq: 3, player: fp}
+	got := mustModel(m.Update(reconnectMsg{seq: 3}))
+	if fp.played != "u" || got.phase != phaseConnecting {
+		t.Fatalf("reconnect tick should replay and reconnect, got played=%q phase=%d", fp.played, got.phase)
+	}
+}
+
+func TestReconnectStaleTickIgnored(t *testing.T) {
+	fp := &fakePlayer{}
+	st := domain.Station{Name: "X", Variants: []domain.StreamVariant{{URL: "u"}}}
+	m := Model{phase: phaseReconnecting, playing: st, varIdx: 0, reconnectSeq: 5, player: fp}
+	got := mustModel(m.Update(reconnectMsg{seq: 2})) // older generation
+	if fp.played != "" || got.phase != phaseReconnecting {
+		t.Fatalf("stale reconnect tick should be ignored, got played=%q phase=%d", fp.played, got.phase)
+	}
+}
+
+func TestPlaySelectedResetsReconnectBudget(t *testing.T) {
+	st := domain.Station{Name: "X", Variants: []domain.StreamVariant{{URL: "u", Bitrate: 128}}}
+	m := Model{view: viewBrowse, stations: []domain.Station{st}, player: &fakePlayer{},
+		quality: domain.QualityHighest, reconnectTry: 4}
+	if got := mustModel(m.playSelected()); got.reconnectTry != 0 {
+		t.Fatalf("playSelected should reset the reconnect budget, got %d", got.reconnectTry)
+	}
+}
+
 func mustModel(model tea.Model, _ tea.Cmd) Model { return model.(Model) }
 
 func searchModel(query string, seq int) Model {
