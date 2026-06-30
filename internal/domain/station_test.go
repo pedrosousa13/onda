@@ -52,6 +52,32 @@ func TestSelectVariant(t *testing.T) {
 	}
 }
 
+func TestSelectVariantLossless(t *testing.T) {
+	s := Station{Variants: []StreamVariant{
+		{URL: "a", Bitrate: 320},
+		{URL: "b", Bitrate: 0, Lossless: true}, // HiFi, reported with bitrate 0
+		{URL: "c", Bitrate: 128},
+	}}
+	if v, _ := s.SelectVariant(QualityHighest); !v.Lossless {
+		t.Fatalf("highest should pick the lossless variant, got %+v", v)
+	}
+	if v, _ := s.SelectVariant(QualityLowest); v.Bitrate != 128 || v.Lossless {
+		t.Fatalf("lowest should avoid lossless and pick 128, got %+v", v)
+	}
+}
+
+func TestVariantQualityLabel(t *testing.T) {
+	if got := (StreamVariant{Lossless: true}).Quality(); got != "HiFi" {
+		t.Fatalf("want HiFi, got %q", got)
+	}
+	if got := (StreamVariant{Bitrate: 192}).Quality(); got != "192k" {
+		t.Fatalf("want 192k, got %q", got)
+	}
+	if got := (StreamVariant{Codec: "aac"}).Quality(); got != "AAC" {
+		t.Fatalf("want AAC, got %q", got)
+	}
+}
+
 func TestSelectVariantEmpty(t *testing.T) {
 	s := Station{}
 	if _, ok := s.SelectVariant(QualityHighest); ok {

@@ -30,7 +30,7 @@ type RadioBrowser struct {
 func NewRadioBrowser(o RBOptions) *RadioBrowser {
 	c := o.Client
 	if c == nil {
-		c = &http.Client{Timeout: 10 * time.Second}
+		c = &http.Client{Timeout: 8 * time.Second}
 	}
 	return &RadioBrowser{mirrors: o.Mirrors, ua: o.UserAgent, client: c}
 }
@@ -76,30 +76,56 @@ func (rb *RadioBrowser) TopVoted(ctx context.Context, limit int) ([]domain.Stati
 	return GroupRecords(rbToRecords(raw)), nil
 }
 
+// getWithFallback races all mirrors concurrently and returns the first success,
+// cancelling the rest. Effective latency is the fastest mirror, and a dead or
+// slow mirror no longer blocks the others.
 func (rb *RadioBrowser) getWithFallback(ctx context.Context, path string) ([]byte, error) {
-	var lastErr error
-	for _, base := range rb.mirrors {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		req.Header.Set("User-Agent", rb.ua)
-		resp, err := rb.client.Do(req)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		b, readErr := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		if readErr != nil || resp.StatusCode != http.StatusOK {
-			lastErr = fmt.Errorf("mirror %s: status %d", base, resp.StatusCode)
-			continue
-		}
-		return b, nil
+	if len(rb.mirrors) == 0 {
+		return nil, errors.New("no mirrors configured")
 	}
-	if lastErr == nil {
-		lastErr = errors.New("no mirrors configured")
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	type result struct {
+		body []byte
+		err  error
+	}
+	ch := make(chan result, len(rb.mirrors))
+
+	for _, base := range rb.mirrors {
+		go func(base string) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
+			if err != nil {
+				ch <- result{err: err}
+				return
+			}
+			req.Header.Set("User-Agent", rb.ua)
+			resp, err := rb.client.Do(req)
+			if err != nil {
+				ch <- result{err: err}
+				return
+			}
+			b, readErr := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if readErr != nil {
+				ch <- result{err: readErr}
+				return
+			}
+			if resp.StatusCode != http.StatusOK {
+				ch <- result{err: fmt.Errorf("mirror %s: status %d", base, resp.StatusCode)}
+				return
+			}
+			ch <- result{body: b}
+		}(base)
+	}
+
+	var lastErr error
+	for range rb.mirrors {
+		r := <-ch
+		if r.err == nil {
+			return r.body, nil // first success wins; defer cancel() stops the rest
+		}
+		lastErr = r.err
 	}
 	return nil, lastErr
 }
