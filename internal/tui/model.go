@@ -415,16 +415,18 @@ func (m Model) submitAdd() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	var s string
 	switch m.view {
 	case viewHome:
-		return m.viewHome()
+		s = m.viewHome()
 	case viewSearch:
-		return m.viewSearch()
+		s = m.viewSearch()
 	case viewAdd:
-		return m.viewAdd()
+		s = m.viewAdd()
 	case viewSettings:
-		return m.viewSettings()
+		s = m.viewSettings()
 	default:
-		return m.viewList()
+		s = m.viewList()
 	}
+	return indentLines(s, gutter)
 }

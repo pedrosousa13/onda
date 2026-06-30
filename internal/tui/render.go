@@ -8,8 +8,32 @@ import (
 	"github.com/pedrosousa13/onda/internal/domain"
 )
 
-// reserved vertical space: header(2) + blank(1) + now-panel(5) + footer(1).
-const chromeHeight = 9
+// reserved vertical space: header(2) + blank(1) + blank(1) + now-panel(5) + footer(1).
+const chromeHeight = 10
+
+// gutter is the left/right breathing-room margin applied to every view.
+const gutter = 2
+
+// contentWidth is the usable width inside the left and right gutters.
+func (m Model) contentWidth() int {
+	w := m.width - 2*gutter
+	if w < 20 {
+		w = 20
+	}
+	return w
+}
+
+// indentLines prefixes every non-empty line with n spaces (the left gutter).
+func indentLines(s string, n int) string {
+	pad := strings.Repeat(" ", n)
+	lines := strings.Split(s, "\n")
+	for i, ln := range lines {
+		if ln != "" {
+			lines[i] = pad + ln
+		}
+	}
+	return strings.Join(lines, "\n")
+}
 
 func (m Model) viewList() string {
 	crumb := m.crumb
@@ -32,7 +56,8 @@ func (m Model) viewList() string {
 		for i := 1; i < m.height-chromeHeight; i++ {
 			b.WriteString("\n")
 		}
-		b.WriteString(m.nowPanel())
+		b.WriteString("\n")
+		b.WriteString(m.nowPanel(m.contentWidth()))
 		b.WriteString("\n")
 		b.WriteString(m.footer())
 		return b.String()
@@ -55,14 +80,15 @@ func (m Model) viewList() string {
 	} else {
 		start, end := windowBounds(m.cursor, len(m.stations), listRows)
 		for i := start; i < end; i++ {
-			b.WriteString(m.renderRow(m.width, i, m.stations[i]) + "\n")
+			b.WriteString(m.renderRow(m.contentWidth(), i, m.stations[i]) + "\n")
 		}
 		for i := end - start; i < listRows; i++ {
 			b.WriteString("\n")
 		}
 	}
 
-	b.WriteString(m.nowPanel())
+	b.WriteString("\n")
+	b.WriteString(m.nowPanel(m.contentWidth()))
 	b.WriteString("\n")
 	b.WriteString(m.footer())
 	return b.String()
@@ -74,7 +100,7 @@ func (m Model) viewHome() string {
 	var b strings.Builder
 	b.WriteString(m.header("home"))
 	b.WriteString("\n\n")
-	b.WriteString(m.nowPanel())
+	b.WriteString(m.nowPanel(m.contentWidth()))
 	b.WriteString("\n\n")
 
 	hasFavs := len(m.favKeys) > 0
@@ -98,7 +124,7 @@ func (m Model) viewHome() string {
 	} else {
 		start, end := windowBounds(m.cursor, len(m.stations), listRows)
 		for i := start; i < end; i++ {
-			b.WriteString(m.renderRow(m.width, i, m.stations[i]) + "\n")
+			b.WriteString(m.renderRow(m.contentWidth(), i, m.stations[i]) + "\n")
 		}
 	}
 	b.WriteString("\n")
@@ -119,11 +145,12 @@ func (m Model) homeFooter() string {
 func (m Model) header(crumb string) string {
 	left := m.st.Title.Render("onda") + m.st.Subtitle.Render("  ·  wander the airwaves")
 	right := m.st.Crumb.Render(crumb)
-	gap := m.width - lipgloss.Width(left) - lipgloss.Width(right)
+	w := m.contentWidth()
+	gap := w - lipgloss.Width(left) - lipgloss.Width(right)
 	if gap < 1 {
 		gap = 1
 	}
-	rule := m.st.Rule.Render(strings.Repeat("─", max(1, m.width)))
+	rule := m.st.Rule.Render(strings.Repeat("─", max(1, w)))
 	return left + strings.Repeat(" ", gap) + right + "\n" + rule
 }
 
@@ -171,8 +198,8 @@ func (m Model) renderRow(w, idx int, s domain.Station) string {
 
 // nowPanel is the bordered "now playing" hero. Line 1: station + volume,
 // line 2: song / tags / status, line 3: the bitrate chooser.
-func (m Model) nowPanel() string {
-	inner := m.width - 4 // border(2) + padding(2)
+func (m Model) nowPanel(width int) string {
+	inner := width - 4 // border(2) + padding(2)
 	if inner < 12 {
 		inner = 12
 	}
@@ -212,7 +239,7 @@ func (m Model) nowPanel() string {
 
 	content := line1 + "\n" + line2 + "\n" + line3
 	// Panel.Width is the content box incl. padding(0,1); total = width-2+border(2) = width.
-	return m.st.Panel.Width(m.width - 2).Render(content)
+	return m.st.Panel.Width(width - 2).Render(content)
 }
 
 // qualityChips renders the playing station's available qualities; the active one
@@ -265,7 +292,7 @@ func (m Model) renderFooterPairs(pairs [][2]string) string {
 		if i > 0 {
 			add += 2
 		}
-		if wsum+add > m.width {
+		if wsum+add > m.contentWidth() {
 			break
 		}
 		if i > 0 {
