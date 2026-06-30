@@ -43,13 +43,18 @@ func (m Model) updateSearch(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.search.Blur()
 		m.view = viewBrowse
 		m.crumb = "“" + q + "”"
-		if len(m.stations) > 0 {
+		// In live mode a result is already highlighted, so enter plays it. In
+		// enter-to-search mode the list holds stale stations, so always search.
+		if m.liveSearch && len(m.stations) > 0 {
 			return m.playSelected()
 		}
 		return m.load(searchCmd(m.dir, q))
 	}
 	var cmd tea.Cmd
 	m.search, cmd = m.search.Update(k)
+	if !m.liveSearch {
+		return m, cmd // enter-to-search: don't query as the user types
+	}
 	// Live search: schedule a debounced search tagged with this keystroke's seq.
 	m.searchSeq++
 	return m, tea.Batch(cmd, searchDebounceCmd(m.searchSeq))
@@ -60,6 +65,13 @@ func (m Model) viewSearch() string {
 	b.WriteString(m.header("search"))
 	b.WriteString("\n\n")
 	b.WriteString("  " + m.search.View() + "\n\n")
+
+	if !m.liveSearch {
+		b.WriteString(m.st.Help.Render("  ") + m.st.Key.Render("⏎") +
+			m.st.Help.Render(" search  ·  ") + m.st.Key.Render("esc") +
+			m.st.Help.Render(" cancel") + "\n")
+		return b.String()
+	}
 
 	q := strings.TrimSpace(m.search.Value())
 	footer := m.st.Help.Render("  ") + m.st.Key.Render("esc") + m.st.Help.Render(" cancel")
