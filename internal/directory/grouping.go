@@ -22,10 +22,16 @@ type record struct {
 }
 
 var (
-	parensRe  = regexp.MustCompile(`\([^)]*\)`)         // (Hi-Fi), (hifi.aac), (metadata)
-	nonAlphaRe = regexp.MustCompile(`[^a-z0-9]+`)       // punctuation/spacing → single space
-	hifiRe    = regexp.MustCompile(`(?i)hi[-.\s]?fi|lossless|flac`)
+	bracketRe  = regexp.MustCompile(`[(\[][^)\]]*[)\]]`) // (Hi-Fi), (hifi.aac), (metadata), [aac], [mp3]
+	nonAlphaRe = regexp.MustCompile(`[^a-z0-9]+`)        // punctuation/spacing → single space
+	hifiRe     = regexp.MustCompile(`(?i)hi[-.\s]?fi|lossless|flac`)
 )
+
+// formatTokens are codec/format words dropped from a normalized name so that
+// e.g. "FIP" and "FIP aac" merge.
+var formatTokens = map[string]bool{
+	"aac": true, "mp3": true, "flac": true, "hifi": true, "ogg": true, "hd": true,
+}
 
 // groupKey merges variants of the same station: it strips quality/format
 // parentheticals and punctuation from the name, then keys on name + country.
@@ -36,14 +42,26 @@ func groupKey(r record) string {
 
 func normalizeName(name string) string {
 	s := strings.ToLower(name)
-	s = parensRe.ReplaceAllString(s, " ")
+	s = bracketRe.ReplaceAllString(s, " ")
 	s = nonAlphaRe.ReplaceAllString(s, " ")
-	return strings.TrimSpace(s)
+	words := strings.Fields(s)
+	kept := words[:0]
+	for _, w := range words {
+		if formatTokens[w] {
+			continue
+		}
+		kept = append(kept, w)
+	}
+	out := strings.Join(kept, " ")
+	if out == "" { // name was only format tokens — fall back to punctuation-stripped form
+		return strings.TrimSpace(s)
+	}
+	return out
 }
 
-// displayName strips quality parentheticals but keeps the original casing.
+// displayName strips quality parentheticals/brackets but keeps original casing.
 func displayName(name string) string {
-	s := parensRe.ReplaceAllString(name, "")
+	s := bracketRe.ReplaceAllString(name, "")
 	return strings.Join(strings.Fields(s), " ")
 }
 

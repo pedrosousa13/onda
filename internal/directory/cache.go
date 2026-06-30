@@ -26,8 +26,12 @@ type cacheEntry struct {
 	Stations []domain.Station `json:"stations"`
 }
 
+// cacheSchema is bumped whenever the cached shape or the grouping logic changes,
+// so old cache entries become misses and are refetched. (v2: name+country merge.)
+const cacheSchema = "v2"
+
 func (c *Cache) path(query string) string {
-	sum := sha256.Sum256([]byte(query))
+	sum := sha256.Sum256([]byte(cacheSchema + "|" + query))
 	return filepath.Join(c.dir, hex.EncodeToString(sum[:8])+".json")
 }
 
