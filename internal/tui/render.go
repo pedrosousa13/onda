@@ -122,62 +122,69 @@ func (m Model) renderRow(w, idx int, s domain.Station) string {
 	return marker + nameS + strings.Repeat(" ", pad) + " " + m.st.Meta.Render(meta) + starS
 }
 
-// nowPanel is the bordered "now playing" hero pinned below the list.
+// nowPanel is the bordered "now playing" hero. Line 1: station + volume,
+// line 2: song / tags / status, line 3: the bitrate chooser.
 func (m Model) nowPanel() string {
 	inner := m.width - 4 // border(2) + padding(2)
 	if inner < 12 {
 		inner = 12
 	}
-
-	var title, sub, tags string
-	if m.isPlaying {
-		title = m.st.NowTitle.Render("♫ " + truncate(m.playing.Name, inner-2))
-		if m.nowTitle != "" {
-			sub = m.st.NowText.Render(truncate(m.nowTitle, inner))
-		} else {
-			sub = m.st.Meta.Render("live")
-		}
-		tags = strings.Join(m.playing.Tags, ", ")
-	} else {
-		title = m.st.NowTitle.Render("♫ nothing playing")
-		sub = m.st.Meta.Render("select a station and press enter")
-	}
-
 	vol := m.volumeBar()
-	// Left of the volume bar: the bitrate chooser when there's a choice, else tags.
-	left := m.st.Meta.Render(truncate(tags, max(0, inner-lipgloss.Width(vol)-1)))
-	if m.isPlaying && len(m.playing.Variants) > 1 {
-		left = m.qualityChips(inner - lipgloss.Width(vol) - 1)
-	}
-	gap := inner - lipgloss.Width(left) - lipgloss.Width(vol)
-	if gap < 1 {
-		gap = 1
-	}
-	third := left + strings.Repeat(" ", gap) + vol
 
-	content := title + "\n" + sub + "\n" + third
+	// Line 1 — station name (left) + volume meter (right).
+	var name string
+	if m.isPlaying {
+		name = m.st.NowTitle.Render("♫ " + truncate(m.playing.Name, max(4, inner-lipgloss.Width(vol)-1)))
+	} else {
+		name = m.st.NowTitle.Render("♫ nothing playing")
+	}
+	g1 := inner - lipgloss.Width(name) - lipgloss.Width(vol)
+	if g1 < 1 {
+		g1 = 1
+	}
+	line1 := name + strings.Repeat(" ", g1) + vol
+
+	// Line 2 — current song (sanitized), else tags, else status.
+	var line2 string
+	switch {
+	case !m.isPlaying:
+		line2 = m.st.Meta.Render("select a station and press enter to play")
+	case m.nowTitle != "":
+		line2 = m.st.NowText.Render(truncate(m.nowTitle, inner))
+	case len(m.playing.Tags) > 0:
+		line2 = m.st.Meta.Render(truncate(strings.Join(m.playing.Tags, ", "), inner))
+	default:
+		line2 = m.st.Meta.Render("live")
+	}
+
+	// Line 3 — bitrate chooser (only when there's a choice).
+	line3 := ""
+	if m.isPlaying && len(m.playing.Variants) > 1 {
+		line3 = m.qualityChips(inner)
+	}
+
+	content := line1 + "\n" + line2 + "\n" + line3
 	// Panel.Width is the content box incl. padding(0,1); total = width-2+border(2) = width.
 	return m.st.Panel.Width(m.width - 2).Render(content)
 }
 
-// qualityChips renders the playing station's available bitrates, the active one
-// highlighted, prefixed with the [ ] hint. Truncates to maxW columns.
+// qualityChips renders the playing station's available qualities; the active one
+// is bracketed in the accent color so it's unmistakable.
 func (m Model) qualityChips(maxW int) string {
-	out := m.st.Help.Render("[ ] ")
+	out := m.st.Help.Render("quality ")
 	for i, v := range m.playing.Variants {
-		chip := v.Quality()
+		var chip string
 		if i == m.varIdx {
-			chip = m.st.Crumb.Render(chip)
+			chip = m.st.Crumb.Render("[" + v.Quality() + "]")
 		} else {
-			chip = m.st.Meta.Render(chip)
+			chip = m.st.Meta.Render(" " + v.Quality() + " ")
 		}
-		next := out + chip + " "
-		if lipgloss.Width(next) > maxW {
+		if lipgloss.Width(out+chip) > maxW {
 			break
 		}
-		out = next
+		out += chip
 	}
-	return strings.TrimRight(out, " ")
+	return out
 }
 
 func (m Model) volumeBar() string {
@@ -195,7 +202,7 @@ func (m Model) footer() string {
 	pairs := [][2]string{
 		{"↑↓", "move"}, {"⏎", "play"}, {"s", "stop"}, {"+/-", "vol"},
 		{"[ ]", "quality"}, {"f", "★"}, {"F", "favs"}, {"/", "search"},
-		{"a", "add"}, {",", "settings"}, {"q", "quit"},
+		{"a", "add"}, {",", "settings"}, {"esc", "home"}, {"q", "quit"},
 	}
 	sep := m.st.Help.Render("  ")
 	out := ""

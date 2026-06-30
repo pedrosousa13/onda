@@ -118,7 +118,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status = "error: " + msg.err.Error()
 		return m, nil
 	case titleMsg:
-		m.nowTitle = msg.title
+		m.nowTitle = sanitizeTitle(msg.title)
 		return m, nil
 	case spinner.TickMsg:
 		if !m.loading {
