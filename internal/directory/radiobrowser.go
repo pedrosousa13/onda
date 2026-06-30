@@ -48,8 +48,7 @@ type rbStation struct {
 	HLS         int     `json:"hls"`
 }
 
-func (rb *RadioBrowser) Search(ctx context.Context, query string) ([]domain.Station, error) {
-	path := "/json/stations/search?limit=200&hidebroken=true&name=" + url.QueryEscape(query)
+func (rb *RadioBrowser) fetchRaw(ctx context.Context, path string) ([]rbStation, error) {
 	body, err := rb.getWithFallback(ctx, path)
 	if err != nil {
 		return nil, err
@@ -58,7 +57,54 @@ func (rb *RadioBrowser) Search(ctx context.Context, query string) ([]domain.Stat
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil, err
 	}
-	return GroupRecords(rbToRecords(raw)), nil
+	return raw, nil
+}
+
+// Search matches the query against name, tag, and country in parallel, merges
+// and de-duplicates the results, then ranks them best-match-first (fuzzy).
+func (rb *RadioBrowser) Search(ctx context.Context, query string) ([]domain.Station, error) {
+	q := strings.TrimSpace(query)
+	if q == "" {
+		raw, err := rb.fetchRaw(ctx, "/json/stations/search?limit=200&hidebroken=true")
+		if err != nil {
+			return nil, err
+		}
+		return GroupRecords(rbToRecords(raw)), nil
+	}
+
+	enc := url.QueryEscape(q)
+	paths := []string{
+		"/json/stations/search?limit=80&hidebroken=true&name=" + enc,
+		"/json/stations/search?limit=80&hidebroken=true&tag=" + enc,
+		"/json/stations/search?limit=40&hidebroken=true&country=" + enc,
+	}
+	type res struct {
+		raw []rbStation
+		err error
+	}
+	ch := make(chan res, len(paths))
+	for _, p := range paths {
+		go func(p string) {
+			raw, err := rb.fetchRaw(ctx, p)
+			ch <- res{raw: raw, err: err}
+		}(p)
+	}
+	var all []rbStation
+	var anyOK bool
+	var lastErr error
+	for range paths {
+		r := <-ch
+		if r.err != nil {
+			lastErr = r.err
+			continue
+		}
+		anyOK = true
+		all = append(all, r.raw...)
+	}
+	if !anyOK {
+		return nil, lastErr
+	}
+	return rankByQuery(q, GroupRecords(rbToRecords(all))), nil
 }
 
 // TopVoted returns the most up-voted stations (community popularity). This is a

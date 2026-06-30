@@ -92,7 +92,9 @@ radio
 | `esc` | Back to browse |
 | `q` | Quit |
 
-**Search** — type a query, `enter` to search, `esc` to cancel.
+**Search** — type a query, `enter` to search, `esc` to cancel. Matches **name,
+country, and tags** (queried in parallel) and ranks results best-match-first with
+light fuzzy/typo tolerance.
 
 **Add a station** — `tab` (or `↑`/`↓`) to move between *name*, *URL*, and
 *bitrate* (optional); `enter` to save; `esc` to cancel. Custom stations are saved
