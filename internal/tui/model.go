@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pedrosousa13/radio/internal/domain"
@@ -58,6 +59,9 @@ type Model struct {
 	width     int
 	height    int
 	favKeys   map[string]bool
+	sp        spinner.Model
+	loading   bool
+	crumb     string
 
 	search   textinput.Model
 	addName  textinput.Model
@@ -77,16 +81,25 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 	br.Placeholder = "bitrate kbps (optional)"
 
 	t := themeByName(theme)
+	sp := spinner.New()
+	sp.Spinner = spinner.Dot
 	return Model{
 		dir: dir, player: p, store: st,
 		quality: quality, tracking: tracking, history: history,
 		volume: 100, themeName: t.Name, st: newStyles(t),
 		width: 80, height: 24, favKeys: map[string]bool{},
+		sp: sp, loading: true, crumb: "popular",
 		search: search, addName: name, addURL: url, addBr: br,
 	}
 }
 
-func (m Model) Init() tea.Cmd { return searchCmd(m.dir, "") }
+func (m Model) Init() tea.Cmd { return tea.Batch(popularCmd(m.dir), m.sp.Tick) }
+
+// load starts an async station fetch and shows the spinner until it returns.
+func (m Model) load(cmd tea.Cmd) (tea.Model, tea.Cmd) {
+	m.loading = true
+	return m, tea.Batch(cmd, m.sp.Tick)
+}
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -94,16 +107,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
 	case stationsMsg:
+		m.loading = false
 		m.stations = msg.stations
 		m.cursor = 0
 		m.markFavorites()
 		return m, nil
 	case errMsg:
+		m.loading = false
 		m.status = "error: " + msg.err.Error()
 		return m, nil
 	case titleMsg:
 		m.nowTitle = msg.title
 		return m, nil
+	case spinner.TickMsg:
+		if !m.loading {
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.sp, cmd = m.sp.Update(msg)
+		return m, cmd
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	}
@@ -165,7 +187,8 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "esc":
 		m.view = viewBrowse
-		return m, searchCmd(m.dir, "")
+		m.crumb = "popular"
+		return m.load(popularCmd(m.dir))
 	}
 	return m, nil
 }

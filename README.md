@@ -97,11 +97,21 @@ radio
 locally and appear alongside everything else.
 
 **Settings** — `1` cycles audio quality (highest / balanced / lowest), `2` cycles
-popularity tracking (never / opt-in / opt-out), `3` toggles play history; `esc` to
-go back. Changes are saved immediately.
+popularity tracking (never / opt-in / opt-out), `3` toggles play history, `4` cycles
+the **theme**; `esc` to go back. Changes are saved immediately.
 
 When a station offers multiple bitrates, `radio` auto-picks per your quality
 setting (default: highest).
+
+On launch you land on **Popular** — the top-voted stations worldwide (from Radio
+Browser's open ranking; reading it reports nothing about you). Press `/` to search
+or `esc` to return to Popular.
+
+### Themes
+
+Switch in settings (`,` then `4`). Bundled: **Catppuccin** (Mocha, Macchiato,
+Frappé, Latte), **Dracula**, **Nord**, **Gruvbox**. Default is Catppuccin Mocha;
+your choice is saved to `config.toml`.
 
 ## Configuration
 
@@ -115,7 +125,7 @@ Config and data live under your OS config directory (resolved via Go's
 Files:
 
 - `config.toml` — `quality` (highest|balanced|lowest), `tracking`
-  (never|opt-in|opt-out), `history_enabled`
+  (never|opt-in|opt-out), `history_enabled`, `theme`
 - `favorites.json`, `custom.json` — your favorites and added stations
 
 Cached Radio Browser results live under your OS cache directory

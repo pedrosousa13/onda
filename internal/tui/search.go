@@ -11,13 +11,14 @@ func (m Model) updateSearch(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.view = viewBrowse
 		m.search.Blur()
-		return m, searchCmd(m.dir, "")
+		m.crumb = "popular"
+		return m.load(popularCmd(m.dir))
 	case "enter":
 		q := m.search.Value()
 		m.view = viewBrowse
 		m.search.Blur()
-		m.status = "searching “" + q + "”"
-		return m, searchCmd(m.dir, q)
+		m.crumb = "“" + q + "”"
+		return m.load(searchCmd(m.dir, q))
 	}
 	var cmd tea.Cmd
 	m.search, cmd = m.search.Update(k)

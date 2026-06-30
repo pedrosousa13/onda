@@ -22,9 +22,21 @@ func searchCmd(d Searcher, query string) tea.Cmd {
 	}
 }
 
+// popularCmd loads the top-voted stations off the UI goroutine.
+func popularCmd(d Searcher) tea.Cmd {
+	return func() tea.Msg {
+		stations, err := d.Popular(context.Background())
+		if err != nil {
+			return errMsg{err: err}
+		}
+		return stationsMsg{stations: stations}
+	}
+}
+
 // Searcher is the slice of directory the TUI needs (keeps tui decoupled).
 type Searcher interface {
 	Search(ctx context.Context, query string) ([]domain.Station, error)
+	Popular(ctx context.Context) ([]domain.Station, error)
 }
 
 // TitleMsg builds a titleMsg from outside the package (used by the app event bridge).

@@ -12,14 +12,31 @@ import (
 const chromeHeight = 9
 
 func (m Model) viewList() string {
-	crumb := "all stations"
+	crumb := m.crumb
+	if crumb == "" {
+		crumb = "all stations"
+	}
 	if m.view == viewFavorites {
 		crumb = "favorites"
+	}
+	if m.loading {
+		crumb = m.sp.View() + " loading"
 	}
 
 	var b strings.Builder
 	b.WriteString(m.header(crumb))
 	b.WriteString("\n\n")
+
+	if m.loading && len(m.stations) == 0 {
+		b.WriteString(m.st.Meta.Render("  "+m.sp.View()+" finding stations…") + "\n")
+		for i := 1; i < m.height-chromeHeight; i++ {
+			b.WriteString("\n")
+		}
+		b.WriteString(m.nowPanel())
+		b.WriteString("\n")
+		b.WriteString(m.footer())
+		return b.String()
+	}
 
 	listRows := m.height - chromeHeight
 	if listRows < 3 {

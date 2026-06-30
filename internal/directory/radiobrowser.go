@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,6 +50,21 @@ type rbStation struct {
 
 func (rb *RadioBrowser) Search(ctx context.Context, query string) ([]domain.Station, error) {
 	path := "/json/stations/search?limit=200&hidebroken=true&name=" + url.QueryEscape(query)
+	body, err := rb.getWithFallback(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	var raw []rbStation
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, err
+	}
+	return GroupRecords(rbToRecords(raw)), nil
+}
+
+// TopVoted returns the most up-voted stations (community popularity). This is a
+// read-only GET — it reports nothing about the user, unlike the /vote endpoint.
+func (rb *RadioBrowser) TopVoted(ctx context.Context, limit int) ([]domain.Station, error) {
+	path := "/json/stations/topvote?hidebroken=true&limit=" + strconv.Itoa(limit)
 	body, err := rb.getWithFallback(ctx, path)
 	if err != nil {
 		return nil, err
