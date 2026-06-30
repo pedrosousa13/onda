@@ -27,7 +27,9 @@ or rebroadcast by us. (*onda* is "wave" in Portuguese, Spanish, and Italian.)
 Streaming inherently exposes your IP to the broadcaster, and searches — including
 the as-you-type queries sent while you search — go to Radio Browser mirrors, the
 same as any internet-radio app. `onda` debounces those queries (one per typing
-pause, not per keystroke) and tells you this on first run.
+pause, not per keystroke) and tells you this on first run. Prefer not to send
+anything as you type? Turn **live search** off in settings and `onda` queries
+only when you press <kbd>⏎</kbd>.
 
 ## Install
 
@@ -161,8 +163,13 @@ Files:
 
 - `config.toml` — `quality` (highest|balanced|lowest), `tracking`
   (never|opt-in|opt-out), `history_enabled`, `theme`, `update_check`
-  (daily update check; `true` by default)
+  (daily update check; `true` by default), `live_search` (search as you type;
+  `true` by default — set `false` for enter-to-search)
 - `favorites.json`, `custom.json` — your favorites and added stations
+
+Everything onda persists lives in this one directory in plain TOML/JSON, so you
+can symlink or sync it with your dotfiles to carry your config and favorites
+across machines.
 
 Cached Radio Browser results live under your OS cache directory
 (`os.UserCacheDir`, e.g. `~/.cache/onda/` on Linux) with a 24-hour TTL; stale

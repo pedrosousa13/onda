@@ -54,36 +54,37 @@ type Store interface {
 	SaveHistory(bool) error
 	SaveTheme(string) error
 	SaveUpdateCheck(bool) error
+	SaveLiveSearch(bool) error
 }
 
 type Model struct {
-	dir       Searcher
-	player    Player
-	store     Store
-	view      view
-	stations  []domain.Station
-	cursor    int
-	hoverIdx  int // station row under the mouse, -1 if none
-	status    string
-	nowTitle  string
-	playing   domain.Station
-	varIdx    int // index into playing.Variants currently streaming
-	isPlaying bool
+	dir         Searcher
+	player      Player
+	store       Store
+	view        view
+	stations    []domain.Station
+	cursor      int
+	hoverIdx    int // station row under the mouse, -1 if none
+	status      string
+	nowTitle    string
+	playing     domain.Station
+	varIdx      int // index into playing.Variants currently streaming
+	isPlaying   bool
 	phase       playbackPhase
 	playErr     string // message shown when phase == phaseFailed
 	playAttempt int    // monotonic; guards stale connect timeouts
-	quality   domain.QualityPref
-	tracking  string
-	history   bool
-	volume    int
-	themeName string
-	st        Styles
-	width     int
-	height    int
-	favKeys   map[string]bool
-	sp        spinner.Model
-	loading   bool
-	crumb     string
+	quality     domain.QualityPref
+	tracking    string
+	history     bool
+	volume      int
+	themeName   string
+	st          Styles
+	width       int
+	height      int
+	favKeys     map[string]bool
+	sp          spinner.Model
+	loading     bool
+	crumb       string
 
 	update         update.Status
 	updateDismiss  bool
@@ -92,15 +93,16 @@ type Model struct {
 	version        string // build version, for the update check
 	updateCacheDir string // where update-cache.json lives
 
-	search    textinput.Model
-	searchSeq int // live-search debounce generation
-	addName   textinput.Model
-	addURL    textinput.Model
-	addBr     textinput.Model
-	addFocus  int // 0=name, 1=url, 2=bitrate
+	search     textinput.Model
+	searchSeq  int  // live-search debounce generation
+	liveSearch bool // search as you type; off → enter-to-search
+	addName    textinput.Model
+	addURL     textinput.Model
+	addBr      textinput.Model
+	addFocus   int // 0=name, 1=url, 2=bitrate
 }
 
-func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck bool, version, updateCacheDir string) Model {
+func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck, liveSearch bool, version, updateCacheDir string) Model {
 	search := textinput.New()
 	search.Placeholder = "search stations, country, or genre…"
 	name := textinput.New()
@@ -121,7 +123,8 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 		hoverIdx: -1,
 		sp:       sp, view: viewHome, crumb: "home",
 		updateCheck: updateCheck, version: version, updateCacheDir: updateCacheDir,
-		search: search, addName: name, addURL: url, addBr: br,
+		liveSearch: liveSearch,
+		search:     search, addName: name, addURL: url, addBr: br,
 	}
 	// Seed Home with favorites; if there are none, Init fetches a Popular preview.
 	if st != nil {
@@ -211,7 +214,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case searchDebounceMsg:
 		// Only the latest keystroke's tick, still in the search view, searches.
-		if m.view != viewSearch || msg.seq != m.searchSeq {
+		// A toggle to enter-to-search mid-type can leave a tick in flight.
+		if !m.liveSearch || m.view != viewSearch || msg.seq != m.searchSeq {
 			return m, nil
 		}
 		q := strings.TrimSpace(m.search.Value())
