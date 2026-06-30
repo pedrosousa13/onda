@@ -13,7 +13,8 @@ import (
 type view int
 
 const (
-	viewBrowse view = iota
+	viewHome view = iota // landing: now-playing + favorites
+	viewBrowse
 	viewSearch
 	viewFavorites
 	viewAdd
@@ -84,17 +85,34 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 	t := themeByName(theme)
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
-	return Model{
+	m := Model{
 		dir: dir, player: p, store: st,
 		quality: quality, tracking: tracking, history: history,
 		volume: 100, themeName: t.Name, st: newStyles(t),
 		width: 80, height: 24, favKeys: map[string]bool{},
-		sp: sp, loading: true, crumb: "popular",
+		sp: sp, view: viewHome, crumb: "home",
 		search: search, addName: name, addURL: url, addBr: br,
 	}
+	// Seed Home with favorites; if there are none, Init fetches a Popular preview.
+	if st != nil {
+		if favs, err := st.Favorites(); err == nil && len(favs) > 0 {
+			m.stations = favs
+			m.markFavorites()
+		} else {
+			m.loading = true
+		}
+	} else {
+		m.loading = true
+	}
+	return m
 }
 
-func (m Model) Init() tea.Cmd { return tea.Batch(popularCmd(m.dir), m.sp.Tick) }
+func (m Model) Init() tea.Cmd {
+	if m.loading { // no favorites yet → load a Popular preview for Home
+		return tea.Batch(popularCmd(m.dir), m.sp.Tick)
+	}
+	return nil
+}
 
 // load starts an async station fetch and shows the spinner until it returns.
 func (m Model) load(cmd tea.Cmd) (tea.Model, tea.Cmd) {
@@ -179,6 +197,10 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "F":
 		return m.showFavorites()
+	case "p", "P":
+		m.view = viewBrowse
+		m.crumb = "popular"
+		return m.load(popularCmd(m.dir))
 	case "a":
 		m.view = viewAdd
 		m.addFocus = 0
@@ -191,11 +213,24 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.view = viewSettings
 		return m, nil
 	case "esc":
-		m.view = viewBrowse
-		m.crumb = "popular"
-		return m.load(popularCmd(m.dir))
+		return m.goHome()
 	}
 	return m, nil
+}
+
+// goHome returns to the Home view: favorites if any, else a Popular preview.
+func (m Model) goHome() (tea.Model, tea.Cmd) {
+	m.view = viewHome
+	m.crumb = "home"
+	if m.store != nil {
+		if favs, err := m.store.Favorites(); err == nil && len(favs) > 0 {
+			m.stations = favs
+			m.cursor = 0
+			m.markFavorites()
+			return m, nil
+		}
+	}
+	return m.load(popularCmd(m.dir)) // no favorites → Popular preview
 }
 
 func (m Model) playSelected() (tea.Model, tea.Cmd) {
@@ -381,6 +416,8 @@ func (m Model) submitAdd() (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	switch m.view {
+	case viewHome:
+		return m.viewHome()
 	case viewSearch:
 		return m.viewSearch()
 	case viewAdd:

@@ -9,10 +9,8 @@ import (
 func (m Model) updateSearch(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "esc":
-		m.view = viewBrowse
 		m.search.Blur()
-		m.crumb = "popular"
-		return m.load(popularCmd(m.dir))
+		return m.goHome()
 	case "enter":
 		q := m.search.Value()
 		m.view = viewBrowse

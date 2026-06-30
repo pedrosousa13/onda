@@ -44,7 +44,12 @@ func TestRenderGallery(t *testing.T) {
 	}
 
 	m := sampleModel()
-	frame("BROWSE", m)
+	frame("HOME", m) // sampleModel has a favorite, so Home shows favorites
+
+	bw := m
+	bw.view = viewBrowse
+	bw.crumb = "popular"
+	frame("BROWSE", bw)
 
 	s := m
 	s.view = viewSearch
