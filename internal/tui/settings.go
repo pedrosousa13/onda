@@ -32,6 +32,11 @@ func (m Model) updateSettings(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.store != nil {
 			_ = m.store.SaveTheme(m.themeName)
 		}
+	case "5":
+		m.updateCheck = !m.updateCheck
+		if m.store != nil {
+			_ = m.store.SaveUpdateCheck(m.updateCheck)
+		}
 	}
 	return m, nil
 }
@@ -53,7 +58,8 @@ func (m Model) viewSettings() string {
 	b.WriteString(row("1", "audio quality", string(m.quality)) + "\n")
 	b.WriteString(row("2", "popularity tracking", m.tracking) + "\n")
 	b.WriteString(row("3", "play history", fmt.Sprintf("%v", m.history)) + "\n")
-	b.WriteString(row("4", "theme", m.themeName) + "\n\n")
+	b.WriteString(row("4", "theme", m.themeName) + "\n")
+	b.WriteString(row("5", "check for updates", fmt.Sprintf("%v", m.updateCheck)) + "\n\n")
 
 	b.WriteString(m.st.Help.Render("  press a number to change · ") +
 		m.st.Key.Render("esc") + m.st.Help.Render(" back") + "\n")
