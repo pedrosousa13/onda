@@ -46,6 +46,7 @@ type fakeStore struct {
 	custom         []domain.Station
 	savedVolume    int
 	savedNormalize bool
+	recents        []domain.Station
 }
 
 func (f *fakeStore) Favorites() ([]domain.Station, error)    { return nil, nil }
@@ -61,6 +62,9 @@ func (f *fakeStore) SaveUpdateCheck(bool) error              { return nil }
 func (f *fakeStore) SaveLiveSearch(bool) error               { return nil }
 func (f *fakeStore) SaveVolume(v int) error                  { f.savedVolume = v; return nil }
 func (f *fakeStore) SaveNormalize(v bool) error              { f.savedNormalize = v; return nil }
+func (f *fakeStore) Recents() ([]domain.Station, error)      { return f.recents, nil }
+func (f *fakeStore) AddRecent(s domain.Station) error        { f.recents = append(f.recents, s); return nil }
+func (f *fakeStore) ClearRecents() error                     { f.recents = nil; return nil }
 
 func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 	fs := &fakeStore{}
@@ -317,6 +321,43 @@ func TestPlayDifferentStationUsesPreference(t *testing.T) {
 	// cursor 0 = other (KEXP); highest preference → 192k at index 0.
 	if got := mustModel(m.playSelected()); got.varIdx != 0 || got.playing.Name != "KEXP" {
 		t.Fatalf("different station should use preference, got varIdx=%d playing=%s", got.varIdx, got.playing.Name)
+	}
+}
+
+func TestPlayRecordsRecentOnlyWhenHistoryOn(t *testing.T) {
+	st := domain.Station{Name: "KEXP", Homepage: "kexp.org", Variants: []domain.StreamVariant{{URL: "u", Bitrate: 128}}}
+
+	off := &fakeStore{}
+	m := Model{store: off, player: &fakePlayer{}, quality: domain.QualityHighest,
+		stations: []domain.Station{st}, history: false}
+	_ = mustModel(m.playSelected())
+	if len(off.recents) != 0 {
+		t.Fatalf("history off should record nothing, got %d", len(off.recents))
+	}
+
+	on := &fakeStore{}
+	m = Model{store: on, player: &fakePlayer{}, quality: domain.QualityHighest,
+		stations: []domain.Station{st}, history: true}
+	_ = mustModel(m.playSelected())
+	if len(on.recents) != 1 || on.recents[0].Name != "KEXP" {
+		t.Fatalf("history on should record the played station, got %+v", on.recents)
+	}
+}
+
+func TestShowRecentsLoadsList(t *testing.T) {
+	fs := &fakeStore{recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}}}
+	got := mustModel((Model{store: fs}).showRecents())
+	if got.view != viewRecents || len(got.stations) != 1 {
+		t.Fatalf("showRecents should open recents with items, got view=%d n=%d", got.view, len(got.stations))
+	}
+}
+
+func TestClearRecentsEmptiesView(t *testing.T) {
+	fs := &fakeStore{recents: []domain.Station{{Name: "KEXP"}}}
+	m := Model{store: fs, view: viewRecents, stations: fs.recents}
+	got := mustModel(m.clearRecents())
+	if len(got.stations) != 0 || len(fs.recents) != 0 {
+		t.Fatalf("clear should empty recents, got view=%d store=%d", len(got.stations), len(fs.recents))
 	}
 }
 

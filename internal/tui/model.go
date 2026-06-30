@@ -21,6 +21,7 @@ const (
 	viewFavorites
 	viewAdd
 	viewSettings
+	viewRecents
 )
 
 // playbackPhase tracks what the now-playing panel should honestly report.
@@ -58,6 +59,9 @@ type Store interface {
 	SaveLiveSearch(bool) error
 	SaveVolume(int) error
 	SaveNormalize(bool) error
+	Recents() ([]domain.Station, error)
+	AddRecent(domain.Station) error
+	ClearRecents() error
 }
 
 type Model struct {
@@ -355,6 +359,12 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "F":
 		return m.showFavorites()
+	case "r":
+		return m.showRecents()
+	case "c":
+		if m.view == viewRecents {
+			return m.clearRecents()
+		}
 	case "p", "P":
 		m.view = viewBrowse
 		m.crumb = "popular"
@@ -404,6 +414,7 @@ func (m Model) playSelected() (tea.Model, tea.Cmd) {
 		_ = m.player.Play(v.URL)
 		m.nowTitle = ""
 		m.status = "playing " + m.playing.Name + " · " + v.Quality()
+		m.recordRecent(st)
 		return m.startConnecting()
 	}
 
@@ -414,10 +425,19 @@ func (m Model) playSelected() (tea.Model, tea.Cmd) {
 		m.isPlaying = true
 		m.nowTitle = ""
 		m.status = "playing " + st.Name + " · " + v.Quality()
+		m.recordRecent(st)
 		return m.startConnecting()
 	}
 	m.status = "no playable stream for " + st.Name
 	return m, nil
+}
+
+// recordRecent appends the station to the local play history, but only when the
+// user has opted in (history setting). Stored locally only — see store.AddRecent.
+func (m Model) recordRecent(st domain.Station) {
+	if m.history && m.store != nil {
+		_ = m.store.AddRecent(st)
+	}
 }
 
 // startConnecting enters the connecting phase and schedules a stale-guarded
@@ -509,6 +529,35 @@ func (m Model) showFavorites() (tea.Model, tea.Cmd) {
 	m.stations = favs
 	m.cursor = 0
 	m.markFavorites()
+	return m, nil
+}
+
+// showRecents opens the locally-stored play history (newest first).
+func (m Model) showRecents() (tea.Model, tea.Cmd) {
+	if m.store == nil {
+		return m, nil
+	}
+	recents, err := m.store.Recents()
+	if err != nil {
+		m.status = "error loading recents: " + err.Error()
+		return m, nil
+	}
+	m.view = viewRecents
+	m.crumb = "recents"
+	m.stations = recents
+	m.cursor = 0
+	m.markFavorites()
+	return m, nil
+}
+
+// clearRecents wipes the local play history.
+func (m Model) clearRecents() (tea.Model, tea.Cmd) {
+	if m.store != nil {
+		_ = m.store.ClearRecents()
+	}
+	m.stations = nil
+	m.cursor = 0
+	m.status = "cleared play history"
 	return m, nil
 }
 

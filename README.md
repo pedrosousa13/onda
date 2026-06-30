@@ -19,8 +19,8 @@ or rebroadcast by us. (*onda* is "wave" in Portuguese, Spanish, and Italian.)
 - **Silent by default** — popularity tracking defaults to `never`, so `onda`
   reports nothing about what you listen to. You can opt in (`opt-in`/`opt-out`)
   in settings to contribute to community rankings if you want.
-- **Local-only data** — favorites, custom stations, and config never leave your
-  machine. No telemetry.
+- **Local-only data** — favorites, custom stations, config, and (opt-in) play
+  history never leave your machine. No telemetry.
 - **Public-domain data** — station data comes from the public-domain
   [Radio Browser](https://www.radio-browser.info) project plus a bundled CC0 list.
 
@@ -104,6 +104,8 @@ onda
 | `[` / `]` | Higher / lower bitrate (when a station offers several) |
 | `f` | Toggle favorite on selected station |
 | `F` | Show favorites |
+| `r` | Recently played (when play history is on) |
+| `c` | Clear play history (in the recents view) |
 | `p` | Popular (top-voted worldwide) |
 | `esc` | Back to Home |
 | `/` | Search |
@@ -137,6 +139,10 @@ the **theme**, `5` toggles the daily update check, `6` toggles **live search**
 normalization** (evens out volume jumps between stations; off by default, applies
 live); `esc` to go back. Changes are saved immediately.
 
+**Recently played** — when **play history** is on (settings `3`, off by default),
+the stations you play are remembered locally and listed under `r` (newest first,
+de-duplicated). It never leaves your machine; `c` in that view clears it.
+
 When a station offers multiple bitrates, `onda` auto-picks per your quality
 setting (default: highest).
 
@@ -169,6 +175,7 @@ Files:
   `true` by default — set `false` for enter-to-search), `volume` (0–100,
   restored on launch), `normalize` (loudness normalization; `false` by default)
 - `favorites.json`, `custom.json` — your favorites and added stations
+- `recents.json` — your play history (only written when `history_enabled` is on)
 
 Everything onda persists lives in this one directory in plain TOML/JSON, so you
 can symlink or sync it with your dotfiles to carry your config and favorites
