@@ -56,7 +56,7 @@ func Run() error {
 	defer p.Close()
 
 	model := tui.New(dir, p, st, domain.QualityPref(cfg.Quality), cfg.Tracking,
-		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, version, cacheDir)
+		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, cfg.LiveSearch, version, cacheDir)
 	prog := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseAllMotion())
 
 	// Bridge player events into the TUI.

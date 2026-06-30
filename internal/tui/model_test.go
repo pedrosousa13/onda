@@ -52,6 +52,7 @@ func (f *fakeStore) SaveTracking(string) error               { return nil }
 func (f *fakeStore) SaveHistory(bool) error                  { return nil }
 func (f *fakeStore) SaveTheme(string) error                  { return nil }
 func (f *fakeStore) SaveUpdateCheck(bool) error              { return nil }
+func (f *fakeStore) SaveLiveSearch(bool) error               { return nil }
 
 func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 	fs := &fakeStore{}
@@ -66,7 +67,7 @@ func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 }
 
 func TestNewStartsOnHome(t *testing.T) {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, "1.0.0", t.TempDir())
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, "1.0.0", t.TempDir())
 	if m.view != viewHome {
 		t.Fatalf("New should start on Home, got view %d", m.view)
 	}
@@ -147,7 +148,7 @@ func mustModel(model tea.Model, _ tea.Cmd) Model { return model.(Model) }
 func searchModel(query string, seq int) Model {
 	ti := textinput.New()
 	ti.SetValue(query)
-	return Model{view: viewSearch, search: ti, searchSeq: seq}
+	return Model{view: viewSearch, search: ti, searchSeq: seq, liveSearch: true}
 }
 
 func TestSearchDebounceFiresLatestOnly(t *testing.T) {
@@ -189,6 +190,31 @@ func TestSearchEnterPlaysSelected(t *testing.T) {
 	got := mustModel(m.updateSearch(tea.KeyMsg{Type: tea.KeyEnter}))
 	if !got.isPlaying || got.view != viewBrowse {
 		t.Fatalf("enter should play the selected result and open browse, got isPlaying=%v view=%d", got.isPlaying, got.view)
+	}
+}
+
+func TestLiveSearchOffSkipsDebounce(t *testing.T) {
+	m := searchModel("jaz", 0)
+	m.liveSearch = false
+	got := mustModel(m.updateSearch(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("z")}))
+	if got.searchSeq != 0 {
+		t.Fatalf("enter-to-search mode must not schedule a live search, got searchSeq=%d", got.searchSeq)
+	}
+}
+
+func TestLiveSearchOffEnterSearchesNotPlays(t *testing.T) {
+	m := searchModel("kexp", 0)
+	m.liveSearch = false
+	m.player = &fakePlayer{}
+	m.quality = domain.QualityHighest
+	// Stale stations from the prior view must not be played on enter.
+	m.stations = []domain.Station{{Name: "stale", Variants: []domain.StreamVariant{{URL: "u", Bitrate: 128}}}}
+	got := mustModel(m.updateSearch(tea.KeyMsg{Type: tea.KeyEnter}))
+	if got.isPlaying {
+		t.Fatal("enter-to-search mode must search, not play a stale station")
+	}
+	if !got.loading || got.view != viewBrowse {
+		t.Fatalf("enter should start a search and open browse, got loading=%v view=%d", got.loading, got.view)
 	}
 }
 
