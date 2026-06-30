@@ -1,0 +1,31 @@
+package tui
+
+import (
+	"context"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/pedrosousa13/radio/internal/domain"
+)
+
+type stationsMsg struct{ stations []domain.Station }
+type errMsg struct{ err error }
+type titleMsg struct{ title string }
+
+// searchCmd runs a directory search off the UI goroutine.
+func searchCmd(d Searcher, query string) tea.Cmd {
+	return func() tea.Msg {
+		stations, err := d.Search(context.Background(), query)
+		if err != nil {
+			return errMsg{err: err}
+		}
+		return stationsMsg{stations: stations}
+	}
+}
+
+// Searcher is the slice of directory the TUI needs (keeps tui decoupled).
+type Searcher interface {
+	Search(ctx context.Context, query string) ([]domain.Station, error)
+}
+
+// TitleMsg builds a titleMsg from outside the package (used by the app event bridge).
+func TitleMsg(s string) tea.Msg { return titleMsg{title: s} }
