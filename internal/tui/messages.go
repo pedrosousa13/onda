@@ -19,6 +19,9 @@ type playErrMsg struct{ err error }
 // connectTimeoutMsg fires after a play attempt; attempt guards against stale ticks.
 type connectTimeoutMsg struct{ attempt int }
 
+// searchDebounceMsg fires after typing pauses; seq guards against stale ticks.
+type searchDebounceMsg struct{ seq int }
+
 // searchCmd runs a directory search off the UI goroutine.
 func searchCmd(d Searcher, query string) tea.Cmd {
 	return func() tea.Msg {
