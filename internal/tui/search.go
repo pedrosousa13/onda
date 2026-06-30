@@ -26,11 +26,26 @@ func (m Model) updateSearch(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.search.Blur()
 		return m.goHome()
+	case "up":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+		return m, nil
+	case "down":
+		if m.cursor < len(m.stations)-1 {
+			m.cursor++
+		}
+		return m, nil
 	case "enter":
-		q := m.search.Value()
-		m.view = viewBrowse
+		// Play the highlighted live result and drop into the browse list so the
+		// now-playing panel shows. If results haven't loaded yet, search first.
+		q := strings.TrimSpace(m.search.Value())
 		m.search.Blur()
+		m.view = viewBrowse
 		m.crumb = "“" + q + "”"
+		if len(m.stations) > 0 {
+			return m.playSelected()
+		}
 		return m.load(searchCmd(m.dir, q))
 	}
 	var cmd tea.Cmd
@@ -47,6 +62,7 @@ func (m Model) viewSearch() string {
 	b.WriteString("  " + m.search.View() + "\n\n")
 
 	q := strings.TrimSpace(m.search.Value())
+	footer := m.st.Help.Render("  ") + m.st.Key.Render("esc") + m.st.Help.Render(" cancel")
 	switch {
 	case len([]rune(q)) < minSearchLen:
 		b.WriteString(m.st.Help.Render("  keep typing — matches name, country, or genre") + "\n")
@@ -56,18 +72,17 @@ func (m Model) viewSearch() string {
 		b.WriteString(m.st.Meta.Render("  no matches for “"+q+"”") + "\n")
 	default:
 		const preview = 8
-		for i, s := range m.stations {
-			if i >= preview {
-				b.WriteString(m.st.Help.Render("  …and "+strconv.Itoa(len(m.stations)-preview)+" more — press ") +
-					m.st.Key.Render("⏎") + m.st.Help.Render(" to open") + "\n")
-				break
-			}
-			b.WriteString(m.renderRow(m.contentWidth(), i, s) + "\n")
+		start, end := windowBounds(m.cursor, len(m.stations), preview)
+		for i := start; i < end; i++ {
+			b.WriteString(m.renderRow(m.contentWidth(), i, m.stations[i]) + "\n")
 		}
+		footer = m.st.Help.Render("  "+strconv.Itoa(len(m.stations))+" matches  ·  ") +
+			m.st.Key.Render("↑↓") + m.st.Help.Render(" pick  ·  ") +
+			m.st.Key.Render("⏎") + m.st.Help.Render(" play  ·  ") +
+			m.st.Key.Render("esc") + m.st.Help.Render(" cancel")
 	}
 
 	b.WriteString("\n")
-	b.WriteString(m.st.Help.Render("  ") + m.st.Key.Render("⏎") + m.st.Help.Render(" open results  ·  ") +
-		m.st.Key.Render("esc") + m.st.Help.Render(" cancel") + "\n")
+	b.WriteString(footer + "\n")
 	return b.String()
 }
