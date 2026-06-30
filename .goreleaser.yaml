@@ -58,3 +58,7 @@ scoops:
 
 release:
   prerelease: auto
+  # release-please creates the GitHub release + changelog; GoReleaser only
+  # attaches the built archives, leaving release-please's notes untouched.
+  mode: keep-existing
+  replace_existing_artifacts: true
