@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/pedrosousa13/onda/compare/v1.1.0...v1.2.0) (2026-06-30)
+
+
+### Features
+
+* **tui:** debounced live search ([53ecd28](https://github.com/pedrosousa13/onda/commit/53ecd28c8bc2369a415295d2e8e3a34826037a45))
+* **tui:** UX polish — padding, centered home, connecting feedback, mouse ([59b0f2e](https://github.com/pedrosousa13/onda/commit/59b0f2e2f323738f3193115f855edbb57151ff4b))
+
+
+### Bug Fixes
+
+* **tui:** persist chosen bitrate on replay; docs + privacy updates ([876573c](https://github.com/pedrosousa13/onda/commit/876573cdf582cb55bc90cf74dfc88cc2bb12c569))
+
 ## [1.1.0](https://github.com/pedrosousa13/onda/compare/v1.0.0...v1.1.0) (2026-06-30)
 
 
