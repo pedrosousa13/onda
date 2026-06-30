@@ -46,6 +46,8 @@ type rbStation struct {
 	GeoLat      float64 `json:"geo_lat"`
 	GeoLong     float64 `json:"geo_long"`
 	HLS         int     `json:"hls"`
+	Votes       int     `json:"votes"`
+	ClickCount  int     `json:"clickcount"`
 }
 
 func (rb *RadioBrowser) fetchRaw(ctx context.Context, path string) ([]rbStation, error) {
@@ -190,6 +192,7 @@ func rbToRecords(raw []rbStation) []record {
 			Name: s.Name, Country: s.Country, Tags: tags, Homepage: s.Homepage,
 			Lat: s.GeoLat, Lon: s.GeoLong, URL: s.URLResolved,
 			Codec: s.Codec, Bitrate: s.Bitrate, HLS: s.HLS == 1,
+			Votes: s.Votes, ClickCount: s.ClickCount,
 		})
 	}
 	return recs

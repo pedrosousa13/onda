@@ -10,7 +10,7 @@ import (
 type StreamVariant struct {
 	URL      string
 	Codec    string
-	Bitrate  int  // kbps; 0 means unknown
+	Bitrate  int // kbps; 0 means unknown
 	HLS      bool
 	Lossless bool // true for HiFi/FLAC streams (often reported with bitrate 0)
 }
@@ -40,12 +40,14 @@ func (v StreamVariant) effBitrate() int {
 // Station is a logical station that may expose multiple stream variants
 // (Radio Browser stores one URL per record; the directory layer groups them).
 type Station struct {
-	Name     string
-	Country  string
-	Lat, Lon float64
-	Tags     []string
-	Homepage string
-	Variants []StreamVariant
+	Name       string
+	Country    string
+	Lat, Lon   float64
+	Tags       []string
+	Homepage   string
+	Votes      int // community votes/popularity from Radio Browser
+	ClickCount int // recent listens from Radio Browser
+	Variants   []StreamVariant
 }
 
 // QualityPref controls which StreamVariant SelectVariant returns.
