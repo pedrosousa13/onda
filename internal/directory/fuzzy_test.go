@@ -38,3 +38,35 @@ func TestFieldScoreOrder(t *testing.T) {
 		t.Fatal("substring should outscore subsequence")
 	}
 }
+
+func TestFieldScoreTypoTolerance(t *testing.T) {
+	// A transposition typo within edit distance 2 matches a token via the
+	// edit-distance tier (raido → radio is distance 1).
+	if fieldScore("raido", "Radio Paradise") == 0 {
+		t.Fatal("expected 'raido' to fuzzy-match token 'radio'")
+	}
+	// Transpositions in tag-like single words match too.
+	if fieldScore("rcok", "rock") == 0 {
+		t.Fatal("expected 'rcok' to fuzzy-match 'rock'")
+	}
+	// The edit-distance tier must rank below the substring tier.
+	if fieldScore("raido", "Radio Paradise") >= fieldScore("radio", "radio paradise") {
+		t.Fatal("edit-distance match should score below a substring match")
+	}
+}
+
+func TestFieldScoreShortQueryGated(t *testing.T) {
+	// "oct" is within edit distance 1 of "cot" (transposition) but is only 3
+	// runes, so the length-gated edit-distance tier must not fire — and it is
+	// neither a substring nor a subsequence, so the score is 0.
+	if got := fieldScore("oct", "cot"); got != 0 {
+		t.Fatalf("3-rune query must not use the edit-distance tier, got %d", got)
+	}
+}
+
+func TestFieldScoreFarTypoNoMatch(t *testing.T) {
+	// Distance greater than 2 must not match.
+	if got := fieldScore("raidooo", "radio"); got != 0 {
+		t.Fatalf("distance>2 should not match, got %d", got)
+	}
+}
