@@ -24,7 +24,7 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
-brews:
+homebrew_casks:
   - repository:
       owner: pedrosousa13
       name: homebrew-tap
@@ -32,12 +32,17 @@ brews:
     homepage: "https://github.com/pedrosousa13/radio"
     description: "Ethical, privacy-minded radios-of-the-world TUI"
     license: "MIT"
+    binaries:
+      - radio
     dependencies:
-      - name: mpv
-    install: |
-      bin.install "radio"
-    test: |
-      system "#{bin}/radio", "--version"
+      - formula: mpv
+    hooks:
+      post:
+        # Strip the quarantine flag so the unsigned binary runs without a Gatekeeper prompt.
+        install: |
+          if OS.mac? && File.exist?("#{staged_path}/radio")
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/radio"]
+          end
 
 scoops:
   - repository:
