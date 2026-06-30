@@ -117,9 +117,17 @@ cursor. (Keyboard remains fully supported; the mouse is optional.)
 
 **Search** — results appear **as you type** — no need to press enter. The query
 is sent shortly after you pause typing (debounced). Use `↑`/`↓` to pick a result
-and `enter` to play it; `esc` cancels. Matches **name, country, and tags**
-(queried in parallel) and ranks results best-match-first with light fuzzy/typo
-tolerance.
+and `enter` to play it; `esc` cancels.
+
+One search box covers **station name, country, and genre/tags** — there are no
+prefixes or modes, just type what you know:
+
+- **By name** — `kexp`, `radio eins`
+- **By country** — `japan`, `portugal` (country name, as Radio Browser labels it)
+- **By genre / tag** — `jazz`, `lo-fi`, `techno`, `news`
+
+Results are ranked best-match-first across all three fields, and small typos are
+tolerated — `raido eins` still finds **Radio Eins**.
 
 While a stream connects, the now-playing panel shows **`connecting…`**, then the
 song title once audio starts — or a clear message if the stream can't be reached.

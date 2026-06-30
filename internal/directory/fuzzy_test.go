@@ -49,6 +49,19 @@ func TestFieldScoreTypoTolerance(t *testing.T) {
 	if fieldScore("rcok", "rock") == 0 {
 		t.Fatal("expected 'rcok' to fuzzy-match 'rock'")
 	}
+	// Multi-word typo queries match per token: every query word must fuzzy-match
+	// some field word ("raido einz" → "Radio Eins").
+	if fieldScore("raido einz", "Radio Eins") == 0 {
+		t.Fatal("expected 'raido einz' to fuzzy-match 'Radio Eins'")
+	}
+	// A short word in a multi-word query must match exactly (no loose matching).
+	if fieldScore("raido fm", "radio fm") == 0 {
+		t.Fatal("expected 'raido fm' to match 'radio fm' (typo word + exact short word)")
+	}
+	// If any query word matches nothing, the whole query doesn't fuzzy-match.
+	if got := fieldScore("raido zzzzz", "radio eins"); got != 0 {
+		t.Fatalf("query with an unmatched word should not fuzzy-match, got %d", got)
+	}
 	// The edit-distance tier must rank below the substring tier.
 	if fieldScore("raido", "Radio Paradise") >= fieldScore("radio", "radio paradise") {
 		t.Fatal("edit-distance match should score below a substring match")
