@@ -221,6 +221,36 @@ func TestMouseClickSelectsThenPlays(t *testing.T) {
 	}
 }
 
+func TestReplaySameStationKeepsVariant(t *testing.T) {
+	st := domain.Station{Name: "FIP", Homepage: "fip.fr", Variants: []domain.StreamVariant{
+		{URL: "hi", Bitrate: 192}, {URL: "lo", Bitrate: 64},
+	}}
+	m := Model{
+		view: viewBrowse, stations: []domain.Station{st},
+		player: &fakePlayer{}, quality: domain.QualityHighest,
+		isPlaying: true, playing: st, varIdx: 1, // user chose the 64k variant
+	}
+	if got := mustModel(m.playSelected()); got.varIdx != 1 {
+		t.Fatalf("replaying the current station should keep varIdx 1 (64k), got %d", got.varIdx)
+	}
+}
+
+func TestPlayDifferentStationUsesPreference(t *testing.T) {
+	cur := domain.Station{Name: "FIP", Homepage: "fip.fr", Variants: []domain.StreamVariant{{URL: "x", Bitrate: 64}}}
+	other := domain.Station{Name: "KEXP", Homepage: "kexp.org", Variants: []domain.StreamVariant{
+		{URL: "hi", Bitrate: 192}, {URL: "lo", Bitrate: 64},
+	}}
+	m := Model{
+		view: viewBrowse, stations: []domain.Station{other},
+		player: &fakePlayer{}, quality: domain.QualityHighest,
+		isPlaying: true, playing: cur, varIdx: 0,
+	}
+	// cursor 0 = other (KEXP); highest preference → 192k at index 0.
+	if got := mustModel(m.playSelected()); got.varIdx != 0 || got.playing.Name != "KEXP" {
+		t.Fatalf("different station should use preference, got varIdx=%d playing=%s", got.varIdx, got.playing.Name)
+	}
+}
+
 func TestSettingsCycleQuality(t *testing.T) {
 	m := Model{quality: domain.QualityHighest}
 	m = m.cycleQuality()
