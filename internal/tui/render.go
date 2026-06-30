@@ -150,8 +150,8 @@ func (m Model) viewHome() string {
 func (m Model) homeFooter() string {
 	pairs := [][2]string{
 		{"↑↓", "move"}, {"⏎", "play"}, {"+/-", "vol"}, {"[ ]", "quality"},
-		{"/", "search"}, {"p", "popular"}, {"F", "favorites"}, {"a", "add"},
-		{",", "settings"}, {"q", "quit"},
+		{"t", m.sleepLabel()}, {"/", "search"}, {"p", "popular"}, {"F", "favorites"},
+		{"a", "add"}, {",", "settings"}, {"q", "quit"},
 	}
 	return m.renderFooterPairs(pairs)
 }
@@ -320,8 +320,8 @@ func (m Model) volumeBar() string {
 
 func (m Model) footer() string {
 	pairs := [][2]string{
-		{"↑↓", "move"}, {"⏎", "play"}, {"s", "stop"}, {"+/-", "vol"},
-		{"[ ]", "quality"}, {"f", "★"}, {"F", "favs"}, {"/", "search"},
+		{"↑↓", "move"}, {"⏎", "play"}, {"s", "stop"}, {"t", m.sleepLabel()},
+		{"+/-", "vol"}, {"[ ]", "quality"}, {"f", "★"}, {"F", "favs"}, {"/", "search"},
 		{"a", "add"}, {",", "settings"}, {"esc", "home"}, {"q", "quit"},
 	}
 	return m.renderFooterPairs(pairs)

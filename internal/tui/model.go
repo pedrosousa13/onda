@@ -72,6 +72,8 @@ type Model struct {
 	phase       playbackPhase
 	playErr     string // message shown when phase == phaseFailed
 	playAttempt int    // monotonic; guards stale connect timeouts
+	sleepMins   int    // minutes left on the sleep timer, 0 = off
+	sleepSeq    int    // monotonic; guards stale sleep ticks
 	quality   domain.QualityPref
 	tracking  string
 	history   bool
@@ -198,6 +200,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.playErr = "still connecting — the stream may be slow or offline"
 		}
 		return m, nil
+	case sleepTickMsg:
+		if msg.seq != m.sleepSeq || m.sleepMins <= 0 {
+			return m, nil // stale tick, or timer cancelled
+		}
+		m.sleepMins--
+		if m.sleepMins <= 0 {
+			if m.player != nil {
+				_ = m.player.Stop()
+			}
+			m.isPlaying = false
+			m.phase = phaseIdle
+			m.status = "sleep timer — stopped"
+			return m, nil
+		}
+		return m, sleepTickCmd(m.sleepSeq)
 	case updateMsg:
 		m.update = msg.status
 		return m, nil
@@ -320,6 +337,8 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.phase = phaseIdle
 		m.playErr = ""
 		m.status = "stopped"
+	case "t":
+		return m.cycleSleep()
 	case "+", "=":
 		return m.changeVolume(5)
 	case "-", "_":
@@ -422,6 +441,45 @@ func (m Model) startConnecting() (tea.Model, tea.Cmd) {
 	return m, tea.Tick(connectTimeout, func(time.Time) tea.Msg {
 		return connectTimeoutMsg{attempt: attempt}
 	})
+}
+
+// sleepSteps is the cycle of sleep-timer durations in minutes (0 = off).
+var sleepSteps = []int{0, 15, 30, 60}
+
+// cycleSleep advances the sleep timer to the next preset and (re)starts the
+// countdown. Bumping sleepSeq invalidates any tick still in flight.
+func (m Model) cycleSleep() (tea.Model, tea.Cmd) {
+	idx := 0
+	for i, s := range sleepSteps {
+		if s == m.sleepMins {
+			idx = i
+			break
+		}
+	}
+	m.sleepMins = sleepSteps[(idx+1)%len(sleepSteps)]
+	m.sleepSeq++
+	if m.sleepMins == 0 {
+		m.status = "sleep timer off"
+		return m, nil
+	}
+	m.status = "sleep timer " + strconv.Itoa(m.sleepMins) + "m"
+	return m, sleepTickCmd(m.sleepSeq)
+}
+
+// sleepTickCmd schedules a one-minute countdown tick tagged with seq.
+func sleepTickCmd(seq int) tea.Cmd {
+	return tea.Tick(time.Minute, func(time.Time) tea.Msg {
+		return sleepTickMsg{seq: seq}
+	})
+}
+
+// sleepLabel is the footer hint for the sleep timer: "sleep" when off, else the
+// minutes remaining.
+func (m Model) sleepLabel() string {
+	if m.sleepMins > 0 {
+		return "sleep " + strconv.Itoa(m.sleepMins) + "m"
+	}
+	return "sleep"
 }
 
 // changeVariant switches the playing station to another available bitrate.

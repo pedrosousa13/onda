@@ -98,6 +98,7 @@ onda
 | `↑`/`↓` or `k`/`j` | Move selection |
 | `enter` | Play selected station |
 | `s` | Stop |
+| `t` | Sleep timer — cycle 15 / 30 / 60 min / off |
 | `+` / `-` | Volume up / down |
 | `[` / `]` | Higher / lower bitrate (when a station offers several) |
 | `f` | Toggle favorite on selected station |
@@ -132,6 +133,10 @@ locally and appear alongside everything else.
 popularity tracking (never / opt-in / opt-out), `3` toggles play history, `4` cycles
 the **theme**, `5` toggles the daily update check; `esc` to go back. Changes are
 saved immediately.
+
+**Sleep timer** — press `t` to cycle 15 / 30 / 60 minutes / off. The footer shows
+the minutes remaining; when it reaches zero, playback stops. The timer resets on
+each launch.
 
 When a station offers multiple bitrates, `onda` auto-picks per your quality
 setting (default: highest).
