@@ -27,7 +27,9 @@ or rebroadcast by us. (*onda* is "wave" in Portuguese, Spanish, and Italian.)
 Streaming inherently exposes your IP to the broadcaster, and searches — including
 the as-you-type queries sent while you search — go to Radio Browser mirrors, the
 same as any internet-radio app. `onda` debounces those queries (one per typing
-pause, not per keystroke) and tells you this on first run.
+pause, not per keystroke) and tells you this on first run. Prefer not to send
+anything as you type? Turn **live search** off in settings and `onda` queries
+only when you press <kbd>⏎</kbd>.
 
 ## Install
 
@@ -130,7 +132,8 @@ locally and appear alongside everything else.
 
 **Settings** — `1` cycles audio quality (highest / balanced / lowest), `2` cycles
 popularity tracking (never / opt-in / opt-out), `3` toggles play history, `4` cycles
-the **theme**, `5` toggles the daily update check, `6` toggles **loudness
+the **theme**, `5` toggles the daily update check, `6` toggles **live search**
+(search as you type; off → enter-to-search), `7` toggles **loudness
 normalization** (evens out volume jumps between stations; off by default, applies
 live); `esc` to go back. Changes are saved immediately.
 
@@ -162,9 +165,14 @@ Files:
 
 - `config.toml` — `quality` (highest|balanced|lowest), `tracking`
   (never|opt-in|opt-out), `history_enabled`, `theme`, `update_check`
-  (daily update check; `true` by default), `normalize` (loudness normalization;
-  `false` by default)
+  (daily update check; `true` by default), `live_search` (search as you type;
+  `true` by default — set `false` for enter-to-search), `volume` (0–100,
+  restored on launch), `normalize` (loudness normalization; `false` by default)
 - `favorites.json`, `custom.json` — your favorites and added stations
+
+Everything onda persists lives in this one directory in plain TOML/JSON, so you
+can symlink or sync it with your dotfiles to carry your config and favorites
+across machines.
 
 Cached Radio Browser results live under your OS cache directory
 (`os.UserCacheDir`, e.g. `~/.cache/onda/` on Linux) with a 24-hour TTL; stale
@@ -192,7 +200,7 @@ isn't possible without canonical IDs the source doesn't provide.
 
 ## Building from source
 
-Requires Go 1.24+ and `mpv`.
+Requires Go 1.25+ and `mpv`.
 
 ```sh
 git clone https://github.com/pedrosousa13/onda

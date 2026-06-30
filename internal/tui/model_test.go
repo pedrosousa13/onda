@@ -16,9 +16,9 @@ type fakePlayer struct {
 	normalize bool
 }
 
-func (f *fakePlayer) Play(url string) error    { f.played = url; return nil }
-func (f *fakePlayer) Stop() error              { return nil }
-func (f *fakePlayer) Volume(int) error         { return nil }
+func (f *fakePlayer) Play(url string) error      { f.played = url; return nil }
+func (f *fakePlayer) Stop() error                { return nil }
+func (f *fakePlayer) Volume(int) error           { return nil }
 func (f *fakePlayer) SetNormalize(on bool) error { f.normalize = on; return nil }
 
 var errSample = errors.New("boom")
@@ -44,6 +44,7 @@ type fakeStore struct {
 	adds, removes  int
 	isFav          bool
 	custom         []domain.Station
+	savedVolume    int
 	savedNormalize bool
 }
 
@@ -57,6 +58,8 @@ func (f *fakeStore) SaveTracking(string) error               { return nil }
 func (f *fakeStore) SaveHistory(bool) error                  { return nil }
 func (f *fakeStore) SaveTheme(string) error                  { return nil }
 func (f *fakeStore) SaveUpdateCheck(bool) error              { return nil }
+func (f *fakeStore) SaveLiveSearch(bool) error               { return nil }
+func (f *fakeStore) SaveVolume(v int) error                  { f.savedVolume = v; return nil }
 func (f *fakeStore) SaveNormalize(v bool) error              { f.savedNormalize = v; return nil }
 
 func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
@@ -72,7 +75,7 @@ func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 }
 
 func TestNewStartsOnHome(t *testing.T) {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
 	if m.view != viewHome {
 		t.Fatalf("New should start on Home, got view %d", m.view)
 	}
@@ -82,10 +85,34 @@ func TestSettingsToggleNormalize(t *testing.T) {
 	fp := &fakePlayer{}
 	fs := &fakeStore{}
 	m := Model{view: viewSettings, player: fp, store: fs}
-	got := mustModel(m.updateSettings(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("6")}))
+	got := mustModel(m.updateSettings(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("7")}))
 	if !got.normalize || !fp.normalize || !fs.savedNormalize {
-		t.Fatalf("toggling 6 should enable normalize everywhere, got model=%v player=%v store=%v",
+		t.Fatalf("toggling 7 should enable normalize everywhere, got model=%v player=%v store=%v",
 			got.normalize, fp.normalize, fs.savedNormalize)
+	}
+}
+
+func TestNewRestoresVolume(t *testing.T) {
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 42, false, "1.0.0", t.TempDir())
+	if m.volume != 42 {
+		t.Fatalf("New should restore the saved volume, got %d", m.volume)
+	}
+	// Out-of-range values from a hand-edited config are clamped.
+	m = New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 150, false, "1.0.0", t.TempDir())
+	if m.volume != 100 {
+		t.Fatalf("New should clamp volume to 100, got %d", m.volume)
+	}
+}
+
+func TestChangeVolumePersistsAndClamps(t *testing.T) {
+	fs := &fakeStore{}
+	m := Model{store: fs, player: &fakePlayer{}, volume: 98}
+	got := mustModel(m.changeVolume(5)) // 98+5 = 103 → clamp to 100
+	if got.volume != 100 {
+		t.Fatalf("volume should clamp to 100, got %d", got.volume)
+	}
+	if fs.savedVolume != 100 {
+		t.Fatalf("volume should be persisted, got %d", fs.savedVolume)
 	}
 }
 
@@ -164,7 +191,7 @@ func mustModel(model tea.Model, _ tea.Cmd) Model { return model.(Model) }
 func searchModel(query string, seq int) Model {
 	ti := textinput.New()
 	ti.SetValue(query)
-	return Model{view: viewSearch, search: ti, searchSeq: seq}
+	return Model{view: viewSearch, search: ti, searchSeq: seq, liveSearch: true}
 }
 
 func TestSearchDebounceFiresLatestOnly(t *testing.T) {
@@ -206,6 +233,31 @@ func TestSearchEnterPlaysSelected(t *testing.T) {
 	got := mustModel(m.updateSearch(tea.KeyMsg{Type: tea.KeyEnter}))
 	if !got.isPlaying || got.view != viewBrowse {
 		t.Fatalf("enter should play the selected result and open browse, got isPlaying=%v view=%d", got.isPlaying, got.view)
+	}
+}
+
+func TestLiveSearchOffSkipsDebounce(t *testing.T) {
+	m := searchModel("jaz", 0)
+	m.liveSearch = false
+	got := mustModel(m.updateSearch(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("z")}))
+	if got.searchSeq != 0 {
+		t.Fatalf("enter-to-search mode must not schedule a live search, got searchSeq=%d", got.searchSeq)
+	}
+}
+
+func TestLiveSearchOffEnterSearchesNotPlays(t *testing.T) {
+	m := searchModel("kexp", 0)
+	m.liveSearch = false
+	m.player = &fakePlayer{}
+	m.quality = domain.QualityHighest
+	// Stale stations from the prior view must not be played on enter.
+	m.stations = []domain.Station{{Name: "stale", Variants: []domain.StreamVariant{{URL: "u", Bitrate: 128}}}}
+	got := mustModel(m.updateSearch(tea.KeyMsg{Type: tea.KeyEnter}))
+	if got.isPlaying {
+		t.Fatal("enter-to-search mode must search, not play a stale station")
+	}
+	if !got.loading || got.view != viewBrowse {
+		t.Fatalf("enter should start a search and open browse, got loading=%v view=%d", got.loading, got.view)
 	}
 }
 

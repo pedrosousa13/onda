@@ -12,7 +12,7 @@ import (
 
 // sampleModel builds a populated model for visual inspection of View() output.
 func sampleModel() Model {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, false, "1.0.0", "")
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", "")
 	m.width, m.height = 76, 22
 	m.stations = []domain.Station{
 		{Name: "KEXP", Country: "United States", Tags: []string{"indie", "seattle"}, Variants: []domain.StreamVariant{{Bitrate: 128}}},
