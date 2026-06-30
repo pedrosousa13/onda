@@ -197,7 +197,7 @@ isn't possible without canonical IDs the source doesn't provide.
 
 ## Building from source
 
-Requires Go 1.24+ and `mpv`.
+Requires Go 1.25+ and `mpv`.
 
 ```sh
 git clone https://github.com/pedrosousa13/onda
