@@ -34,6 +34,7 @@ func TestSelectVariant(t *testing.T) {
 		{"highest", QualityHighest, []int{64, 320, 128}, 320},
 		{"lowest", QualityLowest, []int{64, 320, 128}, 64},
 		{"balanced picks <=128", QualityBalanced, []int{64, 320, 128}, 128},
+		{"balanced at exactly 128 (boundary)", QualityBalanced, []int{128, 192}, 128},
 		{"balanced falls back to lowest above 128", QualityBalanced, []int{192, 320}, 192},
 		{"unknown bitrate treated as 0", QualityHighest, []int{0, 0}, 0},
 	}
