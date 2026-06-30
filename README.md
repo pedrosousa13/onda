@@ -130,8 +130,9 @@ locally and appear alongside everything else.
 
 **Settings** — `1` cycles audio quality (highest / balanced / lowest), `2` cycles
 popularity tracking (never / opt-in / opt-out), `3` toggles play history, `4` cycles
-the **theme**, `5` toggles the daily update check; `esc` to go back. Changes are
-saved immediately.
+the **theme**, `5` toggles the daily update check, `6` toggles **loudness
+normalization** (evens out volume jumps between stations; off by default, applies
+live); `esc` to go back. Changes are saved immediately.
 
 When a station offers multiple bitrates, `onda` auto-picks per your quality
 setting (default: highest).
@@ -161,7 +162,8 @@ Files:
 
 - `config.toml` — `quality` (highest|balanced|lowest), `tracking`
   (never|opt-in|opt-out), `history_enabled`, `theme`, `update_check`
-  (daily update check; `true` by default)
+  (daily update check; `true` by default), `normalize` (loudness normalization;
+  `false` by default)
 - `favorites.json`, `custom.json` — your favorites and added stations
 
 Cached Radio Browser results live under your OS cache directory

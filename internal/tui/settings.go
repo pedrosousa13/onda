@@ -37,6 +37,14 @@ func (m Model) updateSettings(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.store != nil {
 			_ = m.store.SaveUpdateCheck(m.updateCheck)
 		}
+	case "6":
+		m.normalize = !m.normalize
+		if m.player != nil {
+			_ = m.player.SetNormalize(m.normalize)
+		}
+		if m.store != nil {
+			_ = m.store.SaveNormalize(m.normalize)
+		}
 	}
 	return m, nil
 }
@@ -59,7 +67,8 @@ func (m Model) viewSettings() string {
 	b.WriteString(row("2", "popularity tracking", m.tracking) + "\n")
 	b.WriteString(row("3", "play history", fmt.Sprintf("%v", m.history)) + "\n")
 	b.WriteString(row("4", "theme", m.themeName) + "\n")
-	b.WriteString(row("5", "check for updates", fmt.Sprintf("%v", m.updateCheck)) + "\n\n")
+	b.WriteString(row("5", "check for updates", fmt.Sprintf("%v", m.updateCheck)) + "\n")
+	b.WriteString(row("6", "loudness normalization", fmt.Sprintf("%v", m.normalize)) + "\n\n")
 
 	b.WriteString(m.st.Help.Render("  press a number to change · ") +
 		m.st.Key.Render("esc") + m.st.Help.Render(" back") + "\n")

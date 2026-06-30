@@ -11,11 +11,15 @@ import (
 	"github.com/pedrosousa13/onda/internal/update"
 )
 
-type fakePlayer struct{ played string }
+type fakePlayer struct {
+	played    string
+	normalize bool
+}
 
-func (f *fakePlayer) Play(url string) error { f.played = url; return nil }
-func (f *fakePlayer) Stop() error           { return nil }
-func (f *fakePlayer) Volume(int) error      { return nil }
+func (f *fakePlayer) Play(url string) error    { f.played = url; return nil }
+func (f *fakePlayer) Stop() error              { return nil }
+func (f *fakePlayer) Volume(int) error         { return nil }
+func (f *fakePlayer) SetNormalize(on bool) error { f.normalize = on; return nil }
 
 var errSample = errors.New("boom")
 
@@ -37,9 +41,10 @@ func TestUpdateErrMsgSetsStatus(t *testing.T) {
 }
 
 type fakeStore struct {
-	adds, removes int
-	isFav         bool
-	custom        []domain.Station
+	adds, removes  int
+	isFav          bool
+	custom         []domain.Station
+	savedNormalize bool
 }
 
 func (f *fakeStore) Favorites() ([]domain.Station, error)    { return nil, nil }
@@ -52,6 +57,7 @@ func (f *fakeStore) SaveTracking(string) error               { return nil }
 func (f *fakeStore) SaveHistory(bool) error                  { return nil }
 func (f *fakeStore) SaveTheme(string) error                  { return nil }
 func (f *fakeStore) SaveUpdateCheck(bool) error              { return nil }
+func (f *fakeStore) SaveNormalize(v bool) error              { f.savedNormalize = v; return nil }
 
 func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 	fs := &fakeStore{}
@@ -66,9 +72,20 @@ func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 }
 
 func TestNewStartsOnHome(t *testing.T) {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, "1.0.0", t.TempDir())
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, false, "1.0.0", t.TempDir())
 	if m.view != viewHome {
 		t.Fatalf("New should start on Home, got view %d", m.view)
+	}
+}
+
+func TestSettingsToggleNormalize(t *testing.T) {
+	fp := &fakePlayer{}
+	fs := &fakeStore{}
+	m := Model{view: viewSettings, player: fp, store: fs}
+	got := mustModel(m.updateSettings(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("6")}))
+	if !got.normalize || !fp.normalize || !fs.savedNormalize {
+		t.Fatalf("toggling 6 should enable normalize everywhere, got model=%v player=%v store=%v",
+			got.normalize, fp.normalize, fs.savedNormalize)
 	}
 }
 

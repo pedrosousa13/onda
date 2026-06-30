@@ -177,3 +177,12 @@ func (s *Store) SaveTheme(theme string) error {
 	c.Theme = theme
 	return s.SaveConfig(c)
 }
+
+func (s *Store) SaveNormalize(v bool) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.Normalize = v
+	return s.SaveConfig(c)
+}

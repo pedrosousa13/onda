@@ -40,6 +40,7 @@ type Player interface {
 	Play(url string) error
 	Stop() error
 	Volume(pct int) error
+	SetNormalize(on bool) error
 }
 
 // Store is the persistence slice the TUI needs.
@@ -54,6 +55,7 @@ type Store interface {
 	SaveHistory(bool) error
 	SaveTheme(string) error
 	SaveUpdateCheck(bool) error
+	SaveNormalize(bool) error
 }
 
 type Model struct {
@@ -76,6 +78,7 @@ type Model struct {
 	tracking  string
 	history   bool
 	volume    int
+	normalize bool
 	themeName string
 	st        Styles
 	width     int
@@ -100,7 +103,7 @@ type Model struct {
 	addFocus  int // 0=name, 1=url, 2=bitrate
 }
 
-func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck bool, version, updateCacheDir string) Model {
+func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck bool, normalize bool, version, updateCacheDir string) Model {
 	search := textinput.New()
 	search.Placeholder = "search stations, country, or genre…"
 	name := textinput.New()
@@ -116,7 +119,7 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 	m := Model{
 		dir: dir, player: p, store: st,
 		quality: quality, tracking: tracking, history: history,
-		volume: 100, themeName: t.Name, st: newStyles(t),
+		volume: 100, normalize: normalize, themeName: t.Name, st: newStyles(t),
 		width: 80, height: 24, favKeys: map[string]bool{},
 		hoverIdx: -1,
 		sp:       sp, view: viewHome, crumb: "home",

@@ -19,7 +19,8 @@ type Event struct {
 }
 
 type Options struct {
-	Binary string // defaults to "mpv"
+	Binary    string // defaults to "mpv"
+	Normalize bool   // start with loudness normalization (dynaudnorm) enabled
 }
 
 type Player struct {
@@ -43,10 +44,11 @@ func New(opts Options) (*Player, error) {
 	// ipcAddress() is platform-specific (Unix socket path or Windows pipe name).
 	addr := ipcAddress()
 	cleanupIPC(addr) // remove any stale socket file (no-op on Windows)
-	cmd := exec.Command(bin,
-		"--idle=yes", "--no-video", "--no-terminal",
-		"--input-ipc-server="+addr,
-	)
+	args := []string{"--idle=yes", "--no-video", "--no-terminal", "--input-ipc-server=" + addr}
+	if opts.Normalize {
+		args = append(args, "--af=dynaudnorm")
+	}
+	cmd := exec.Command(bin, args...)
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
@@ -71,6 +73,15 @@ func (p *Player) Stop() error           { return p.send("stop") }
 func (p *Player) Pause() error          { return p.send("set_property", "pause", true) }
 func (p *Player) Resume() error         { return p.send("set_property", "pause", false) }
 func (p *Player) Volume(pct int) error  { return p.send("set_property", "volume", pct) }
+
+// SetNormalize toggles loudness normalization live by setting mpv's audio-filter
+// chain to dynaudnorm (on) or clearing it (off).
+func (p *Player) SetNormalize(on bool) error {
+	if on {
+		return p.send("set_property", "af", "dynaudnorm")
+	}
+	return p.send("set_property", "af", "")
+}
 
 func (p *Player) observe() error {
 	if err := p.send("observe_property", 1, "media-title"); err != nil {
