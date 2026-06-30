@@ -110,7 +110,11 @@ func (p *Player) readLoop() {
 				p.emit(Event{Kind: "playing"})
 			}
 		case f.Event == "end-file":
-			p.emit(Event{Kind: "idle"})
+			if f.Reason == "error" {
+				p.emit(Event{Kind: "error", Err: errors.New("stream failed to load")})
+			} else {
+				p.emit(Event{Kind: "idle"})
+			}
 		}
 	}
 	close(p.events)

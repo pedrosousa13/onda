@@ -61,8 +61,15 @@ func Run() error {
 	// Bridge player events into the TUI.
 	go func() {
 		for e := range p.Events() {
-			if e.Kind == "title" {
+			switch e.Kind {
+			case "title":
 				prog.Send(tui.TitleMsg(e.Title))
+			case "playing":
+				prog.Send(tui.PlayingMsg())
+			case "idle":
+				prog.Send(tui.IdleMsg())
+			case "error":
+				prog.Send(tui.PlayErrMsg(e.Err))
 			}
 		}
 	}()

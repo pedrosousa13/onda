@@ -3,6 +3,7 @@ package tui
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -20,6 +21,19 @@ const (
 	viewAdd
 	viewSettings
 )
+
+// playbackPhase tracks what the now-playing panel should honestly report.
+type playbackPhase int
+
+const (
+	phaseIdle playbackPhase = iota
+	phaseConnecting
+	phasePlaying
+	phaseFailed
+)
+
+// connectTimeout marks a play attempt as failed if it never starts playing.
+const connectTimeout = 12 * time.Second
 
 type Player interface {
 	Play(url string) error
@@ -52,6 +66,9 @@ type Model struct {
 	playing   domain.Station
 	varIdx    int // index into playing.Variants currently streaming
 	isPlaying bool
+	phase       playbackPhase
+	playErr     string // message shown when phase == phaseFailed
+	playAttempt int    // monotonic; guards stale connect timeouts
 	quality   domain.QualityPref
 	tracking  string
 	history   bool
@@ -138,6 +155,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case titleMsg:
 		m.nowTitle = sanitizeTitle(msg.title)
 		return m, nil
+	case playingMsg:
+		// core-idle just went false → audio is actually flowing.
+		m.phase = phasePlaying
+		m.isPlaying = true
+		return m, nil
+	case idleMsg:
+		// Only a real end/stop while playing returns us to idle; ignore the
+		// transient idle that precedes playback during connecting.
+		if m.phase == phasePlaying {
+			m.phase = phaseIdle
+			m.isPlaying = false
+		}
+		return m, nil
+	case playErrMsg:
+		m.phase = phaseFailed
+		m.playErr = "couldn't connect — the stream may be offline"
+		return m, nil
+	case connectTimeoutMsg:
+		if msg.attempt == m.playAttempt && m.phase == phaseConnecting {
+			m.phase = phaseFailed
+			m.playErr = "still connecting — the stream may be slow or offline"
+		}
+		return m, nil
 	case spinner.TickMsg:
 		if !m.loading {
 			return m, nil
@@ -179,6 +219,8 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "s":
 		_ = m.player.Stop()
 		m.isPlaying = false
+		m.phase = phaseIdle
+		m.playErr = ""
 		m.status = "stopped"
 	case "+", "=":
 		return m.changeVolume(5)
@@ -245,10 +287,22 @@ func (m Model) playSelected() (tea.Model, tea.Cmd) {
 		m.isPlaying = true
 		m.nowTitle = ""
 		m.status = "playing " + st.Name + " · " + v.Quality()
-	} else {
-		m.status = "no playable stream for " + st.Name
+		return m.startConnecting()
 	}
+	m.status = "no playable stream for " + st.Name
 	return m, nil
+}
+
+// startConnecting enters the connecting phase and schedules a stale-guarded
+// timeout so a stream that never starts is reported as failed, not stuck.
+func (m Model) startConnecting() (tea.Model, tea.Cmd) {
+	m.phase = phaseConnecting
+	m.playErr = ""
+	m.playAttempt++
+	attempt := m.playAttempt
+	return m, tea.Tick(connectTimeout, func(time.Time) tea.Msg {
+		return connectTimeoutMsg{attempt: attempt}
+	})
 }
 
 // changeVariant switches the playing station to another available bitrate.
@@ -268,7 +322,7 @@ func (m Model) changeVariant(delta int) (tea.Model, tea.Cmd) {
 	v := m.playing.Variants[m.varIdx]
 	_ = m.player.Play(v.URL)
 	m.status = "quality " + v.Quality()
-	return m, nil
+	return m.startConnecting()
 }
 
 func indexOfVariant(vs []domain.StreamVariant, target domain.StreamVariant) int {

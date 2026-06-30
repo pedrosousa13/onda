@@ -11,6 +11,14 @@ type stationsMsg struct{ stations []domain.Station }
 type errMsg struct{ err error }
 type titleMsg struct{ title string }
 
+// playback state events bridged from the player.
+type playingMsg struct{}
+type idleMsg struct{}
+type playErrMsg struct{ err error }
+
+// connectTimeoutMsg fires after a play attempt; attempt guards against stale ticks.
+type connectTimeoutMsg struct{ attempt int }
+
 // searchCmd runs a directory search off the UI goroutine.
 func searchCmd(d Searcher, query string) tea.Cmd {
 	return func() tea.Msg {
@@ -41,3 +49,8 @@ type Searcher interface {
 
 // TitleMsg builds a titleMsg from outside the package (used by the app event bridge).
 func TitleMsg(s string) tea.Msg { return titleMsg{title: s} }
+
+// Playback event constructors for the app event bridge.
+func PlayingMsg() tea.Msg          { return playingMsg{} }
+func IdleMsg() tea.Msg             { return idleMsg{} }
+func PlayErrMsg(err error) tea.Msg { return playErrMsg{err: err} }

@@ -33,6 +33,16 @@ func TestParseLineIgnoresReplies(t *testing.T) {
 	}
 }
 
+func TestParseLineEndFileReason(t *testing.T) {
+	f, err := parseLine([]byte(`{"event":"end-file","reason":"error"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Event != "end-file" || f.Reason != "error" {
+		t.Fatalf("unexpected frame: %+v", f)
+	}
+}
+
 func TestNewRequiresMpv(t *testing.T) {
 	// With a bogus binary name, New must fail fast and not leak a process.
 	_, err := New(Options{Binary: "definitely-not-mpv-xyz"})

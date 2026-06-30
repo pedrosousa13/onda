@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pedrosousa13/onda/internal/domain"
 )
 
@@ -68,6 +69,44 @@ func TestGoHomeSetsHomeView(t *testing.T) {
 		t.Fatalf("goHome should switch to Home, got view %d", got.view)
 	}
 }
+
+func TestPlaybackPhaseTransitions(t *testing.T) {
+	// playing event → playing
+	m := Model{phase: phaseConnecting, isPlaying: true}
+	if got := mustModel(m.Update(playingMsg{})); got.phase != phasePlaying {
+		t.Fatalf("playingMsg should set phasePlaying, got %d", got.phase)
+	}
+	// idle while playing → idle + stopped
+	m = Model{phase: phasePlaying, isPlaying: true}
+	if got := mustModel(m.Update(idleMsg{})); got.phase != phaseIdle || got.isPlaying {
+		t.Fatalf("idleMsg while playing should idle+stop, got phase=%d isPlaying=%v", got.phase, got.isPlaying)
+	}
+	// idle while connecting → ignored (transient idle before playback)
+	m = Model{phase: phaseConnecting, isPlaying: true}
+	if got := mustModel(m.Update(idleMsg{})); got.phase != phaseConnecting {
+		t.Fatalf("idleMsg while connecting should be ignored, got phase=%d", got.phase)
+	}
+	// error → failed with a message
+	m = Model{phase: phaseConnecting, isPlaying: true}
+	if got := mustModel(m.Update(playErrMsg{err: errSample})); got.phase != phaseFailed || got.playErr == "" {
+		t.Fatalf("playErrMsg should fail with message, got phase=%d err=%q", got.phase, got.playErr)
+	}
+}
+
+func TestConnectTimeoutGuard(t *testing.T) {
+	// matching attempt while still connecting → failed
+	m := Model{phase: phaseConnecting, playAttempt: 3}
+	if got := mustModel(m.Update(connectTimeoutMsg{attempt: 3})); got.phase != phaseFailed {
+		t.Fatalf("matching timeout should fail, got phase=%d", got.phase)
+	}
+	// stale attempt → ignored
+	m = Model{phase: phaseConnecting, playAttempt: 5}
+	if got := mustModel(m.Update(connectTimeoutMsg{attempt: 3})); got.phase != phaseConnecting {
+		t.Fatalf("stale timeout should be ignored, got phase=%d", got.phase)
+	}
+}
+
+func mustModel(model tea.Model, _ tea.Cmd) Model { return model.(Model) }
 
 func TestSettingsCycleQuality(t *testing.T) {
 	m := Model{quality: domain.QualityHighest}

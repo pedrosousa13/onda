@@ -227,9 +227,13 @@ func (m Model) nowPanel(width int) string {
 	}
 	line1 := name + strings.Repeat(" ", g1) + vol
 
-	// Line 2 — current song (sanitized), else tags, else status.
+	// Line 2 — phase-aware: connecting / error, else song, tags, or status.
 	var line2 string
 	switch {
+	case m.phase == phaseFailed:
+		line2 = m.st.Subtitle.Render(truncate(m.playErr, inner))
+	case m.phase == phaseConnecting:
+		line2 = m.st.NowTitle.Render(truncate("connecting…", inner))
 	case !m.isPlaying:
 		line2 = m.st.Meta.Render("select a station and press enter to play")
 	case m.nowTitle != "":
