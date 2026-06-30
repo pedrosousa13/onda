@@ -2,10 +2,13 @@
 package store
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/pedrosousa13/radio/internal/domain"
 )
 
 type Store struct{ dir string }
@@ -47,4 +50,70 @@ func (s *Store) SaveConfig(c Config) error {
 	}
 	defer f.Close()
 	return toml.NewEncoder(f).Encode(c)
+}
+
+func stationKey(s domain.Station) string {
+	return s.Name + "|" + s.Homepage
+}
+
+func (s *Store) readList(name string) ([]domain.Station, error) {
+	b, err := os.ReadFile(filepath.Join(s.dir, name))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var list []domain.Station
+	if err := json.Unmarshal(b, &list); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func (s *Store) writeList(name string, list []domain.Station) error {
+	b, err := json.MarshalIndent(list, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(s.dir, name), b, 0o644)
+}
+
+func (s *Store) Favorites() ([]domain.Station, error) { return s.readList("favorites.json") }
+
+func (s *Store) AddFavorite(st domain.Station) error {
+	list, err := s.Favorites()
+	if err != nil {
+		return err
+	}
+	for _, e := range list {
+		if stationKey(e) == stationKey(st) {
+			return nil // already present
+		}
+	}
+	return s.writeList("favorites.json", append(list, st))
+}
+
+func (s *Store) RemoveFavorite(st domain.Station) error {
+	list, err := s.Favorites()
+	if err != nil {
+		return err
+	}
+	out := list[:0]
+	for _, e := range list {
+		if stationKey(e) != stationKey(st) {
+			out = append(out, e)
+		}
+	}
+	return s.writeList("favorites.json", out)
+}
+
+func (s *Store) CustomStations() ([]domain.Station, error) { return s.readList("custom.json") }
+
+func (s *Store) AddCustom(st domain.Station) error {
+	list, err := s.CustomStations()
+	if err != nil {
+		return err
+	}
+	return s.writeList("custom.json", append(list, st))
 }
