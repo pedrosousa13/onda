@@ -22,6 +22,7 @@ const (
 type Player interface {
 	Play(url string) error
 	Stop() error
+	Volume(pct int) error
 }
 
 // Store is the persistence slice the TUI needs.
@@ -48,6 +49,7 @@ type Model struct {
 	quality  domain.QualityPref
 	tracking string
 	history  bool
+	volume   int
 
 	search   textinput.Model
 	addName  textinput.Model
@@ -68,6 +70,7 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 	return Model{
 		dir: dir, player: p, store: st,
 		quality: quality, tracking: tracking, history: history,
+		volume:  100,
 		search: search, addName: name, addURL: url, addBr: br,
 	}
 }
@@ -120,6 +123,10 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "s":
 		_ = m.player.Stop()
 		m.status = "stopped"
+	case "+", "=":
+		return m.changeVolume(5)
+	case "-", "_":
+		return m.changeVolume(-5)
 	case "f":
 		return m.toggleFavorite()
 	case "/":
@@ -158,6 +165,19 @@ func (m Model) playSelected() (tea.Model, tea.Cmd) {
 	} else {
 		m.status = "no playable stream for " + st.Name
 	}
+	return m, nil
+}
+
+func (m Model) changeVolume(delta int) (tea.Model, tea.Cmd) {
+	m.volume += delta
+	if m.volume < 0 {
+		m.volume = 0
+	}
+	if m.volume > 100 {
+		m.volume = 100
+	}
+	_ = m.player.Volume(m.volume)
+	m.status = "volume: " + strconv.Itoa(m.volume) + "%"
 	return m, nil
 }
 
@@ -292,6 +312,6 @@ func (m Model) viewList() string {
 		b += "♪ " + m.nowTitle + "\n"
 	}
 	b += statusStyle.Render(m.status) + "\n"
-	b += statusStyle.Render("↑/↓ move · enter play · s stop · f fav · F favorites · / search · a add · , settings · q quit") + "\n"
+	b += statusStyle.Render("↑/↓ move · enter play · s stop · +/- vol · f fav · F favorites · / search · a add · , settings · q quit") + "\n"
 	return b
 }
