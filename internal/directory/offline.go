@@ -45,16 +45,13 @@ func (o *Offline) Search(_ context.Context, q string) ([]domain.Station, error) 
 	return out, nil
 }
 
-// --- TEMPORARY stub, replaced in Task 7 ---
-func toRecords(raw []rawStation) []rawStation { return raw }
-
-func GroupRecords(raw []rawStation) []domain.Station {
-	out := make([]domain.Station, len(raw))
+func toRecords(raw []rawStation) []record {
+	recs := make([]record, len(raw))
 	for i, r := range raw {
-		out[i] = domain.Station{
-			Name: r.Name, Country: r.Country, Tags: r.Tags, Homepage: r.Homepage,
-			Variants: []domain.StreamVariant{{URL: r.URL, Codec: r.Codec, Bitrate: r.Bitrate}},
+		recs[i] = record{
+			Name: r.Name, Country: r.Country, Tags: r.Tags,
+			Homepage: r.Homepage, URL: r.URL, Codec: r.Codec, Bitrate: r.Bitrate,
 		}
 	}
-	return out
+	return recs
 }
