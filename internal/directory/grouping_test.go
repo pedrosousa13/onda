@@ -33,6 +33,33 @@ func TestGroupRecordsCaseInsensitiveKey(t *testing.T) {
 	}
 }
 
+func TestGroupRecordsCollapsesFIPFamily(t *testing.T) {
+	// All of these are the same station ("FIP", France) in Radio Browser.
+	recs := []record{
+		{Name: "FIP", Country: "France", URL: "1", Bitrate: 192},
+		{Name: "FIP", Country: "France", URL: "2", Bitrate: 192},
+		{Name: "FIP (hifi.aac)", Country: "France", URL: "3"},
+		{Name: "FIP (metadata)", Country: "France", URL: "4", Bitrate: 192},
+		{Name: "FIP (no pub)", Country: "France", URL: "5"},
+		{Name: "FIP aac", Country: "France", URL: "6", Bitrate: 192},
+		{Name: "Fip", Country: "France", URL: "7", Bitrate: 192},
+	}
+	got := GroupRecords(recs)
+	if len(got) != 1 {
+		names := make([]string, len(got))
+		for i, s := range got {
+			names[i] = s.Name
+		}
+		t.Fatalf("FIP family should collapse to 1 station, got %d: %v", len(got), names)
+	}
+	if got[0].Name != "FIP" {
+		t.Fatalf("display name should be 'FIP', got %q", got[0].Name)
+	}
+	if len(got[0].Variants) != 7 {
+		t.Fatalf("expected 7 variants, got %d", len(got[0].Variants))
+	}
+}
+
 func TestGroupRecordsMergesQualitySuffixes(t *testing.T) {
 	// Real FIP-style duplicates: same station, split by quality/format suffixes
 	// and punctuation, with differing homepages.
