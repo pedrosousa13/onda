@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 func TestCacheRoundTrip(t *testing.T) {

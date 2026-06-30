@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 // sampleModel builds a populated model for visual inspection of View() output.

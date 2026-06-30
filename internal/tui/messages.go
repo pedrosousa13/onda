@@ -4,7 +4,7 @@ import (
 	"context"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 type stationsMsg struct{ stations []domain.Station }

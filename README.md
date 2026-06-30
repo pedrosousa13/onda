@@ -1,22 +1,22 @@
-# radio
+# onda
 
-Wander the world by radio, from your terminal. `radio` is an ethical,
-privacy-minded internet-radio TUI in the spirit of Radio Garden: browse stations
-by place, search, add your own, and listen — streaming **directly from
-broadcasters**, with nothing hosted, recorded, or rebroadcast by us.
+**onda — wander the airwaves.** An ethical, privacy-minded internet-radio TUI in
+the spirit of Radio Garden: browse stations by place, search, add your own, and
+listen — streaming **directly from broadcasters**, with nothing hosted, recorded,
+or rebroadcast by us. (*onda* is "wave" in Portuguese, Spanish, and Italian.)
 
 > Status: early v1. The bundled offline station list is a small starter set
 > pending a full public-domain import (see [Data sources](#data-sources--credits)).
 
 ## Ethics & privacy
 
-`radio` behaves like a browser pointed at a stream you chose. It connects you
+`onda` behaves like a browser pointed at a stream you chose. It connects you
 **directly** to the broadcaster's public server.
 
 - **No recording**, ever.
 - **No geo-unblocking** — region-locked streams simply fail.
 - **No proxy, no rebroadcast** — one direct connection, nothing re-hosted.
-- **Silent by default** — popularity tracking defaults to `never`, so `radio`
+- **Silent by default** — popularity tracking defaults to `never`, so `onda`
   reports nothing about what you listen to. You can opt in (`opt-in`/`opt-out`)
   in settings to contribute to community rankings if you want.
 - **Local-only data** — favorites, custom stations, and config never leave your
@@ -25,18 +25,18 @@ broadcasters**, with nothing hosted, recorded, or rebroadcast by us.
   [Radio Browser](https://www.radio-browser.info) project plus a bundled CC0 list.
 
 Streaming inherently exposes your IP to the broadcaster, and searches go to Radio
-Browser mirrors — the same as any internet-radio app. `radio` tells you this on
+Browser mirrors — the same as any internet-radio app. `onda` tells you this on
 first run.
 
 ## Install
 
-`radio` runs on **Linux, macOS, and Windows**. It requires
+`onda` runs on **Linux, macOS, and Windows**. It requires
 [`mpv`](https://mpv.io) on your `PATH` for playback.
 
 ### macOS / Linux — Homebrew (recommended)
 
 ```sh
-brew install pedrosousa13/tap/radio
+brew install pedrosousa13/tap/onda
 ```
 
 This also installs `mpv`.
@@ -45,14 +45,14 @@ This also installs `mpv`.
 
 ```sh
 scoop bucket add pedrosousa13 https://github.com/pedrosousa13/scoop-bucket
-scoop install radio
+scoop install onda
 scoop install mpv
 ```
 
 ### Any OS — Go
 
 ```sh
-go install github.com/pedrosousa13/radio@latest
+go install github.com/pedrosousa13/onda@latest
 ```
 
 Install `mpv` separately (`brew install mpv`, `scoop install mpv`, or your
@@ -61,7 +61,7 @@ distro's package manager).
 ### Any OS — prebuilt binary
 
 Download the archive for your platform from the
-[Releases](https://github.com/pedrosousa13/radio/releases) page and put `radio`
+[Releases](https://github.com/pedrosousa13/onda/releases) page and put `onda`
 on your `PATH`. Ensure `mpv` is installed.
 
 ## Usage
@@ -69,7 +69,7 @@ on your `PATH`. Ensure `mpv` is installed.
 Launch:
 
 ```sh
-radio
+onda
 ```
 
 ### Keys
@@ -104,7 +104,7 @@ locally and appear alongside everything else.
 popularity tracking (never / opt-in / opt-out), `3` toggles play history, `4` cycles
 the **theme**; `esc` to go back. Changes are saved immediately.
 
-When a station offers multiple bitrates, `radio` auto-picks per your quality
+When a station offers multiple bitrates, `onda` auto-picks per your quality
 setting (default: highest).
 
 On launch you land on **Home** — your now-playing panel plus your favorites (or a
@@ -124,9 +124,9 @@ your choice is saved to `config.toml`.
 Config and data live under your OS config directory (resolved via Go's
 `os.UserConfigDir`):
 
-- Linux: `~/.config/radio/`
-- macOS: `~/Library/Application Support/radio/`
-- Windows: `%AppData%\radio\`
+- Linux: `~/.config/onda/`
+- macOS: `~/Library/Application Support/onda/`
+- Windows: `%AppData%\onda\`
 
 Files:
 
@@ -135,7 +135,7 @@ Files:
 - `favorites.json`, `custom.json` — your favorites and added stations
 
 Cached Radio Browser results live under your OS cache directory
-(`os.UserCacheDir`, e.g. `~/.cache/radio/` on Linux) with a 24-hour TTL; stale
+(`os.UserCacheDir`, e.g. `~/.cache/onda/` on Linux) with a 24-hour TTL; stale
 cache is still served when you're offline.
 
 Defaults are privacy-first: quality `highest`, tracking `never`, history disabled.
@@ -144,7 +144,7 @@ Defaults are privacy-first: quality `highest`, tracking `never`, history disable
 
 Radio Browser is crowd-sourced and has **no canonical station IDs**, so the same
 station often appears many times (different bitrates, `(Hi-Fi)`/`(metadata)`
-suffixes, broadcaster prefixes like `RTP `, punctuation). `radio` merges these
+suffixes, broadcaster prefixes like `RTP `, punctuation). `onda` merges these
 heuristically — normalizing names and grouping by name + country, then offering
 the distinct bitrates as a `[ ]` chooser. It's best-effort: a few stragglers may
 remain rather than risk merging genuinely different stations. Perfect grouping
@@ -162,10 +162,10 @@ isn't possible without canonical IDs the source doesn't provide.
 Requires Go 1.24+ and `mpv`.
 
 ```sh
-git clone https://github.com/pedrosousa13/radio
-cd radio
-go build -o radio .
-./radio
+git clone https://github.com/pedrosousa13/onda
+cd onda
+go build -o onda .
+./onda
 ```
 
 Run the tests with `go test ./...` (add `-race` if your Go has a C toolchain).

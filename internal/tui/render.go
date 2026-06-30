@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 // reserved vertical space: header(2) + blank(1) + now-panel(5) + footer(1).
@@ -117,7 +117,7 @@ func (m Model) homeFooter() string {
 
 // header renders the title line plus a right-aligned view label and a rule.
 func (m Model) header(crumb string) string {
-	left := m.st.Title.Render("radio") + m.st.Subtitle.Render("  ·  wander the world")
+	left := m.st.Title.Render("onda") + m.st.Subtitle.Render("  ·  wander the airwaves")
 	right := m.st.Crumb.Render(crumb)
 	gap := m.width - lipgloss.Width(left) - lipgloss.Width(right)
 	if gap < 1 {

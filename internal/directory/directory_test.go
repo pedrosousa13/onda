@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 type fakeSource struct {

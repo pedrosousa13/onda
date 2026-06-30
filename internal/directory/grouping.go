@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 // record is a normalized single-stream entry from any source.

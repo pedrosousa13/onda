@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 // rankByQuery reorders stations best-match-first for the query, scoring name

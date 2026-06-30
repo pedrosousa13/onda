@@ -10,7 +10,7 @@ import (
 	"github.com/Microsoft/go-winio"
 )
 
-func ipcAddress() string { return `\\.\pipe\radio-mpv` }
+func ipcAddress() string { return `\\.\pipe\onda-mpv` }
 
 func cleanupIPC(string) {} // named pipes vanish when mpv exits; nothing to remove
 

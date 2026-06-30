@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 var errSample = errors.New("boom")

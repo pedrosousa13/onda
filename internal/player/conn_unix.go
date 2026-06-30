@@ -12,7 +12,7 @@ import (
 )
 
 func ipcAddress() string {
-	return filepath.Join(os.TempDir(), "radio-mpv.sock")
+	return filepath.Join(os.TempDir(), "onda-mpv.sock")
 }
 
 func cleanupIPC(addr string) { _ = os.Remove(addr) }

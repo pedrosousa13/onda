@@ -4,7 +4,7 @@ package directory
 import (
 	"context"
 
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 // Source is a provider of stations (online or offline).

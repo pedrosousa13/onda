@@ -8,18 +8,18 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 type Store struct{ dir string }
 
-// New returns a Store rooted at the user's XDG config dir for radio.
+// New returns a Store rooted at the user's XDG config dir for onda.
 func New() (*Store, error) {
 	base, err := os.UserConfigDir()
 	if err != nil {
 		return nil, err
 	}
-	dir := filepath.Join(base, "radio")
+	dir := filepath.Join(base, "onda")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}

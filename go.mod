@@ -1,4 +1,4 @@
-module github.com/pedrosousa13/radio
+module github.com/pedrosousa13/onda
 
 go 1.24.2
 

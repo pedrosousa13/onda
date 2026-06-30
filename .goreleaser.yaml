@@ -1,5 +1,5 @@
 version: 2
-project_name: radio
+project_name: onda
 
 before:
   hooks:
@@ -7,12 +7,12 @@ before:
 
 builds:
   - main: .
-    binary: radio
+    binary: onda
     env: [CGO_ENABLED=0]
     goos: [darwin, linux, windows]
     goarch: [amd64, arm64]
     ldflags:
-      - -s -w -X github.com/pedrosousa13/radio/internal/app.version={{.Version}}
+      - -s -w -X github.com/pedrosousa13/onda/internal/app.version={{.Version}}
 
 archives:
   - id: default
@@ -29,19 +29,19 @@ homebrew_casks:
       owner: pedrosousa13
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/pedrosousa13/radio"
+    homepage: "https://github.com/pedrosousa13/onda"
     description: "Ethical, privacy-minded radios-of-the-world TUI"
     license: "MIT"
     binaries:
-      - radio
+      - onda
     dependencies:
       - formula: mpv
     hooks:
       post:
         # Strip the quarantine flag so the unsigned binary runs without a Gatekeeper prompt.
         install: |
-          if OS.mac? && File.exist?("#{staged_path}/radio")
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/radio"]
+          if OS.mac? && File.exist?("#{staged_path}/onda")
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/onda"]
           end
 
 scoops:
@@ -49,7 +49,7 @@ scoops:
       owner: pedrosousa13
       name: scoop-bucket
       token: "{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}"
-    homepage: "https://github.com/pedrosousa13/radio"
+    homepage: "https://github.com/pedrosousa13/onda"
     description: "Ethical, privacy-minded radios-of-the-world TUI"
     license: MIT
     # Scoop can't force an mpv dependency the way Homebrew does; the README

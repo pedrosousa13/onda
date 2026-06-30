@@ -3,7 +3,7 @@ package directory
 import (
 	"testing"
 
-	"github.com/pedrosousa13/radio/internal/domain"
+	"github.com/pedrosousa13/onda/internal/domain"
 )
 
 func TestRankByQuery(t *testing.T) {
