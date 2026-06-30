@@ -62,7 +62,7 @@ func Run() error {
 	_ = p.Volume(cfg.Volume) // restore the last session's volume
 
 	model := tui.New(dir, p, st, domain.QualityPref(cfg.Quality), cfg.Tracking,
-		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, cfg.Volume, version, cacheDir)
+		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, cfg.LiveSearch, cfg.Volume, version, cacheDir)
 	prog := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseAllMotion())
 
 	// Bridge player events into the TUI.

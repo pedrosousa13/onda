@@ -169,6 +169,15 @@ func (s *Store) SaveUpdateCheck(v bool) error {
 	return s.SaveConfig(c)
 }
 
+func (s *Store) SaveLiveSearch(v bool) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.LiveSearch = v
+	return s.SaveConfig(c)
+}
+
 func (s *Store) SaveTheme(theme string) error {
 	c, err := s.LoadConfig()
 	if err != nil {
