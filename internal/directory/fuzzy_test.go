@@ -83,3 +83,24 @@ func TestFieldScoreFarTypoNoMatch(t *testing.T) {
 		t.Fatalf("distance>2 should not match, got %d", got)
 	}
 }
+
+func TestMatchLocalFiltersAndFuzzyMatches(t *testing.T) {
+	corpus := []domain.Station{
+		{Name: "Radio Eins", Country: "Germany", Tags: []string{"pop"}},
+		{Name: "Jazz FM", Country: "United Kingdom", Tags: []string{"jazz"}},
+		{Name: "Totally Unrelated", Country: "Chile"},
+	}
+	// Typo query must surface the right station and drop non-matches.
+	got := matchLocal("raido einz", corpus)
+	if len(got) != 1 || got[0].Name != "Radio Eins" {
+		t.Fatalf("expected only Radio Eins, got %+v", got)
+	}
+	// Tag match works.
+	if got := matchLocal("jazz", corpus); len(got) != 1 || got[0].Name != "Jazz FM" {
+		t.Fatalf("expected Jazz FM by tag, got %+v", got)
+	}
+	// Empty query returns everything unchanged.
+	if got := matchLocal("", corpus); len(got) != len(corpus) {
+		t.Fatalf("empty query should return all, got %d", len(got))
+	}
+}

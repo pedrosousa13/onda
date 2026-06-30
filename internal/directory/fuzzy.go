@@ -30,6 +30,33 @@ func rankByQuery(query string, stations []domain.Station) []domain.Station {
 	return out
 }
 
+// matchLocal filters stations to those that score against the query (score > 0)
+// and returns them best-match-first. Unlike rankByQuery (which only reorders),
+// this is the local-search entry point: it both filters and ranks. An empty
+// query returns the input unchanged.
+func matchLocal(query string, stations []domain.Station) []domain.Station {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" {
+		return stations
+	}
+	type scored struct {
+		s domain.Station
+		n int
+	}
+	var arr []scored
+	for _, s := range stations {
+		if n := stationScore(q, s); n > 0 {
+			arr = append(arr, scored{s, n})
+		}
+	}
+	sort.SliceStable(arr, func(a, b int) bool { return arr[a].n > arr[b].n })
+	out := make([]domain.Station, len(arr))
+	for i, x := range arr {
+		out[i] = x.s
+	}
+	return out
+}
+
 func stationScore(q string, s domain.Station) int {
 	best := fieldScore(q, s.Name) * 3 // name weighted highest
 	if c := fieldScore(q, s.Country) * 2; c > best {
