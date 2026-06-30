@@ -28,7 +28,7 @@ type cacheEntry struct {
 
 // cacheSchema is bumped whenever the cached shape or the grouping logic changes,
 // so old cache entries become misses and are refetched. (v2: name+country merge.)
-const cacheSchema = "v2"
+const cacheSchema = "v3"
 
 func (c *Cache) path(query string) string {
 	sum := sha256.Sum256([]byte(cacheSchema + "|" + query))

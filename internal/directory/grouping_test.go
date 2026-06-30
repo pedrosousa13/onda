@@ -66,6 +66,25 @@ func TestGroupRecordsCollapsesFIPFamily(t *testing.T) {
 	}
 }
 
+func TestGroupRecordsBroadcasterPrefixAndRegion(t *testing.T) {
+	recs := []record{
+		{Name: "Antena 3", Country: "Portugal", URL: "1", Bitrate: 128},
+		{Name: "RTP Antena 3", Country: "Portugal", URL: "2", Bitrate: 192},
+		{Name: "Antena 3 - Main", Country: "Portugal", URL: "3", Bitrate: 128},
+		{Name: "Antena 3 Madeira", Country: "Portugal", URL: "4", Bitrate: 128}, // region: distinct
+		{Name: "Radio Antena 3", Country: "Ecuador", URL: "5", Bitrate: 128},    // other country: distinct
+	}
+	got := GroupRecords(recs)
+	// Expect: "Antena 3" (PT, merged x3), "Antena 3 Madeira" (PT), "Radio Antena 3" (EC) = 3.
+	if len(got) != 3 {
+		names := make([]string, len(got))
+		for i, s := range got {
+			names[i] = s.Name + "/" + s.Country
+		}
+		t.Fatalf("want 3 stations, got %d: %v", len(got), names)
+	}
+}
+
 func TestGroupRecordsMergesQualitySuffixes(t *testing.T) {
 	// Real FIP-style duplicates: same station, split by quality/format suffixes
 	// and punctuation, with differing homepages.
