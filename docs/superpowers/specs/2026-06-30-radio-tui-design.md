@@ -61,6 +61,10 @@ patents expired in 2017.
   (**CC0**, ~300 curated stations), embedded in the binary so the app works on
   first run and with no network. CC0 = safe to embed and redistribute.
 
+Radio Browser responses are **cached locally** as JSON under the XDG data dir
+(see `store`) with a modest TTL (~24h) so repeat use is fast and offline-tolerant;
+stale cache is still served when the network or all mirrors are unreachable.
+
 **Important data constraint:** Radio Browser stores **one stream URL per record**.
 A station offering multiple bitrates appears as **multiple separate records**.
 The `directory` layer is responsible for **grouping records into one logical
@@ -103,7 +107,7 @@ Five focused packages, each with a single responsibility and a clean interface:
 |---|---|---|
 | `directory` | Fetch station data; group multi-bitrate records into one logical `Station` | `Search(query)`, `Countries()`, `StationsBy(filter)` → `[]Station` |
 | `player` | Audio playback via a headless `mpv` subprocess (JSON IPC) | `Play(url)`, `Stop()`, `Pause()`, `Volume(n)`, `Events() <-chan Event` |
-| `store` | Local persistence in XDG dirs: config, favorites, custom stations, optional history | file read/write (TOML/JSON) |
+| `store` | Local persistence in XDG dirs: config, favorites, custom stations, optional history | file read/write — config as TOML, data (favorites/custom/history/cache) as JSON |
 | `tui` | Bubble Tea models + Lip Gloss styling: browser, search, now-playing, favorites, add-station form, settings | Elm-style `Update`/`View` |
 | `app` | Wiring + lifecycle: spawn/teardown `mpv`, graceful shutdown, dependency wiring | `main` |
 
@@ -118,8 +122,10 @@ embedded CC0 list — plus a merge/group layer producing the domain model below.
 
 Grouping Radio Browser's one-URL-per-record entries into a `Station` with multiple
 `variants` is the `directory` layer's job. Auto-quality selects the highest-bitrate
-variant by default (configurable to lowest / balanced); the user can override the
-variant per play. Custom user-added stations use the same model and grouping.
+variant by default; the setting offers **lowest** (the minimum-bitrate variant) and
+**balanced** (the highest variant at or below ~128 kbps, else the lowest available).
+The user can override the variant per play. Custom user-added stations use the same
+model and grouping.
 
 ## Data flow
 
