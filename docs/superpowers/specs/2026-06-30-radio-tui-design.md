@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-30
 **Status:** Approved (design), pending implementation plan
-**Repo:** https://github.com/pedrosousa13/radio (private)
+**Repo:** https://github.com/pedrosousa13/radio (public)
 
 ## Summary
 
@@ -20,7 +20,8 @@ and privacy-minded by default.
 - Auto-pick stream quality (highest bitrate by default; configurable; per-play override).
 - Work on first run and offline via a bundled public-domain station list.
 - Be silent-by-default about listening behavior; lead with ethics and privacy.
-- Install in one command via Homebrew; ship as a portable single binary.
+- Run on **Linux, macOS, and Windows** as first-class targets.
+- Install in one command (Homebrew on macOS/Linux, Scoop on Windows); ship as a portable single binary per OS.
 
 ## Non-goals (explicitly out of scope)
 
@@ -95,9 +96,13 @@ HTML scraping — possible later).
 - **Language/UI:** Go + Bubble Tea (Elm architecture) + Lip Gloss (styling).
   Rationale: beautiful TUIs with modest effort, **single static binary**, strong
   HTTP/concurrency for streaming, excellent cross-compilation and distribution.
-- **Audio:** a **headless `mpv` subprocess** controlled over its **JSON IPC socket**.
+- **Audio:** a **headless `mpv` subprocess** controlled over its **JSON IPC channel**
+  (a Unix domain socket on Linux/macOS, a named pipe on Windows via `go-winio`).
   Rationale: every codec/format/HLS works, robust, ICY metadata support, and it
   keeps codec licensing out of our code. `mpv` is a declared install dependency.
+- **Cross-platform:** Linux, macOS, Windows. Only the `player` IPC connection is
+  platform-split (build-tagged files); `store` paths use Go's `os.UserConfigDir()`/
+  `os.UserCacheDir()`, which already resolve per-OS.
 
 ## Architecture
 
@@ -162,13 +167,16 @@ model and grouping.
 
 - **GoReleaser** cross-compiles (macOS arm64/amd64, Linux), publishes **GitHub
   Releases**, and **auto-generates the Homebrew formula**.
-- **Homebrew via a custom tap** — `pedrosousa13/homebrew-tap`:
-  `brew install pedrosousa13/tap/radio`. (homebrew-core needs notability; a tap is
-  the right call now.)
-- The formula declares **`depends_on "mpv"`**, so a single `brew install` yields a
-  working app with its audio backend.
-- **Alternative installs** documented: `go install`, and direct prebuilt-binary
-  download from Releases.
+- **macOS/Linux — Homebrew via a custom tap** — `pedrosousa13/homebrew-tap`:
+  `brew install pedrosousa13/tap/radio`. The formula declares **`depends_on "mpv"`**,
+  so one command yields a working app with its audio backend. (homebrew-core needs
+  notability; a tap is the right call now.)
+- **Windows — Scoop via a custom bucket** — `pedrosousa13/scoop-bucket`:
+  `scoop install radio`. Scoop can't force the `mpv` dependency the way Homebrew
+  does, so the README instructs `scoop install mpv`; the app also prints a clear
+  "install mpv" message if it's missing.
+- **Alternative installs** (any OS) documented: `go install`, and direct
+  prebuilt-binary download from Releases.
 - The **exact** `brew` command, tap URL, and version are finalized when the release
   pipeline is set up, so the README's install commands match what actually ships
   rather than being invented ahead of time.
@@ -230,20 +238,29 @@ first run.
 
 ## Install
 
-### Homebrew (recommended)
+`radio` runs on Linux, macOS, and Windows. It requires [`mpv`](https://mpv.io)
+on your PATH for playback.
+
+### macOS / Linux — Homebrew (recommended)
 
 ```sh
 brew install «finalized at release: pedrosousa13/tap/radio»
 ```
 
-This also installs `mpv`, the audio backend `radio` uses.
+This also installs `mpv`.
 
-### Alternatives
+### Windows — Scoop
 
-- `go install «finalized at release: module path»@latest` (requires `mpv` installed separately)
-- Download a prebuilt binary from the [Releases](https://github.com/pedrosousa13/radio/releases) page (requires `mpv`)
+```sh
+scoop bucket add pedrosousa13 https://github.com/pedrosousa13/scoop-bucket
+scoop install radio
+scoop install mpv
+```
 
-`radio` requires [`mpv`](https://mpv.io) on your PATH for playback.
+### Alternatives (any OS)
+
+- `go install «finalized at release: module path»@latest` (install `mpv` separately)
+- Download the matching archive from the [Releases](https://github.com/pedrosousa13/radio/releases) page (ensure `mpv` is on PATH)
 
 ## Usage
 
