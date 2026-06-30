@@ -20,6 +20,8 @@ func sampleModel() Model {
 		{Name: "Triple J", Country: "Australia", Tags: []string{"alternative"}, Variants: []domain.StreamVariant{{Bitrate: 128}}},
 	}
 	m.cursor = 2
+	m.loading = false
+	m.crumb = "popular"
 	m.favKeys = map[string]bool{favKey(m.stations[0]): true}
 	m.playing = m.stations[2]
 	m.isPlaying = true
