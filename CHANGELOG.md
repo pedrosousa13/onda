@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/pedrosousa13/onda/compare/v1.2.0...v1.3.0) (2026-06-30)
+
+
+### Features
+
+* persist playback volume across launches ([#27](https://github.com/pedrosousa13/onda/issues/27)) ([1aefd11](https://github.com/pedrosousa13/onda/commit/1aefd1116687dc5d54c4a78715fff3547c3b1890)), closes [#22](https://github.com/pedrosousa13/onda/issues/22)
+* **tui:** live-search off toggle (enter-to-search) ([#26](https://github.com/pedrosousa13/onda/issues/26)) ([7ff51d9](https://github.com/pedrosousa13/onda/commit/7ff51d99b207b77670eeba4ef43805724181cb67))
+
 ## [1.2.0](https://github.com/pedrosousa13/onda/compare/v1.1.0...v1.2.0) (2026-06-30)
 
 
