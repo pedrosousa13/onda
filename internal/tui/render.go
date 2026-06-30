@@ -100,7 +100,16 @@ func (m Model) viewHome() string {
 	var b strings.Builder
 	b.WriteString(m.header("home"))
 	b.WriteString("\n\n")
-	b.WriteString(m.nowPanel(m.contentWidth()))
+
+	// Centered hero, capped so it doesn't stretch on wide terminals.
+	heroWidth := m.contentWidth()
+	if heroWidth > 56 {
+		heroWidth = 56
+	}
+	b.WriteString(lipgloss.PlaceHorizontal(m.contentWidth(), lipgloss.Center, m.nowPanel(heroWidth)))
+	b.WriteString("\n")
+	hint := m.st.Help.Render("press ") + m.st.Key.Render("/") + m.st.Help.Render(" to search")
+	b.WriteString(lipgloss.PlaceHorizontal(m.contentWidth(), lipgloss.Center, hint))
 	b.WriteString("\n\n")
 
 	hasFavs := len(m.favKeys) > 0
@@ -112,8 +121,8 @@ func (m Model) viewHome() string {
 			m.st.Help.Render(" on any station to save it)") + "\n")
 	}
 
-	// header(2) + blank(1) + panel(5) + blank(1) + label(1) + footer(1)
-	listRows := m.height - 11
+	// header(2) + blank(1) + panel(5) + hint(1) + blank(1) + label(1) + footer(1)
+	listRows := m.height - 13
 	if listRows < 3 {
 		listRows = 3
 	}

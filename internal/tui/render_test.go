@@ -106,6 +106,28 @@ func TestPanelWidthWithinGutter(t *testing.T) {
 	}
 }
 
+// TestHomeCenteredHeroAndHint verifies the Home hero is centered (indented
+// beyond the gutter on a wide terminal) and the search hint is present.
+func TestHomeCenteredHeroAndHint(t *testing.T) {
+	m := sampleModel()
+	m.view = viewHome
+	out := m.View()
+	if !strings.Contains(out, "to search") {
+		t.Error("home view missing search hint")
+	}
+	var centered bool
+	for _, ln := range strings.Split(out, "\n") {
+		if strings.Contains(ln, "╭") {
+			lead := len(ln) - len(strings.TrimLeft(ln, " "))
+			centered = lead > gutter
+			break
+		}
+	}
+	if !centered {
+		t.Error("hero panel not centered beyond the gutter")
+	}
+}
+
 func repeat(s string, n int) string {
 	out := ""
 	for i := 0; i < n; i++ {
