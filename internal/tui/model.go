@@ -68,35 +68,37 @@ type Store interface {
 }
 
 type Model struct {
-	dir         Searcher
-	player      Player
-	store       Store
-	view        view
-	stations    []domain.Station
-	cursor      int
-	hoverIdx    int // station row under the mouse, -1 if none
-	status      string
-	nowTitle    string
-	playing     domain.Station
-	varIdx      int // index into playing.Variants currently streaming
-	isPlaying   bool
-	phase       playbackPhase
-	playErr     string // message shown when phase == phaseFailed
-	playAttempt int    // monotonic; guards stale connect timeouts
-	quality     domain.QualityPref
-	tracking    string
-	history     bool
-	volume      int
-	normalize   bool
-	themeName   string
-	st          Styles
-	width       int
-	height      int
-	favKeys     map[string]bool
-	homeRecents []domain.Station // leading "recent" section on Home (opt-in, capped)
-	sp          spinner.Model
-	loading     bool
-	crumb       string
+	dir          Searcher
+	player       Player
+	store        Store
+	view         view
+	stations     []domain.Station
+	cursor       int
+	hoverIdx     int // station row under the mouse, -1 if none
+	status       string
+	nowTitle     string
+	playing      domain.Station
+	varIdx       int // index into playing.Variants currently streaming
+	isPlaying    bool
+	phase        playbackPhase
+	playErr      string // message shown when phase == phaseFailed
+	playAttempt  int    // monotonic; guards stale connect timeouts
+	quality      domain.QualityPref
+	tracking     string
+	history      bool
+	volume       int
+	normalize    bool
+	themeName    string
+	st           Styles
+	width        int
+	height       int
+	favKeys      map[string]bool
+	homeRecents  []domain.Station // leading "recent" section on Home (opt-in, capped)
+	sp           spinner.Model
+	loading      bool
+	refreshing   bool
+	needsRefresh bool
+	crumb        string
 
 	update         update.Status
 	updateDismiss  bool
@@ -114,7 +116,7 @@ type Model struct {
 	addFocus   int // 0=name, 1=url, 2=bitrate
 }
 
-func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck, liveSearch bool, volume int, normalize bool, version, updateCacheDir string) Model {
+func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck, liveSearch bool, volume int, normalize bool, needsRefresh bool, version, updateCacheDir string) Model {
 	search := textinput.New()
 	search.Placeholder = "search stations, country, or genre…"
 	name := textinput.New()
@@ -134,6 +136,7 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 		width: 80, height: 24, favKeys: map[string]bool{},
 		hoverIdx: -1,
 		sp:       sp, view: viewHome, crumb: "home",
+		needsRefresh: needsRefresh, refreshing: needsRefresh,
 		updateCheck: updateCheck, version: version, updateCacheDir: updateCacheDir,
 		liveSearch: liveSearch,
 		search:     search, addName: name, addURL: url, addBr: br,
@@ -159,8 +162,11 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 
 func (m Model) Init() tea.Cmd {
 	cmds := []tea.Cmd{}
-	if m.loading { // no favorites yet → load a Popular preview for Home
-		cmds = append(cmds, popularCmd(m.dir), m.sp.Tick)
+	if m.loading { // no favorites yet → load an initial preview for Home
+		cmds = append(cmds, initialCmd(m.dir), m.sp.Tick)
+	}
+	if m.needsRefresh { // refresh the corpus in the background
+		cmds = append(cmds, refreshCmd(m.dir), m.sp.Tick)
 	}
 	if m.updateCheck && m.version != "" && !strings.HasSuffix(m.version, "-dev") {
 		cmds = append(cmds, updateCheckCmd(m.version, m.updateCacheDir))
@@ -196,6 +202,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.loading = false
 		m.status = "error: " + msg.err.Error()
+		return m, nil
+	case corpusRefreshedMsg:
+		m.refreshing = false
+		if msg.err != nil {
+			m.status = "couldn't refresh — keeping current stations"
+			return m, nil
+		}
+		m.status = "station list updated"
+		// Re-pull only the popular/initial preview — keeps it vote-sorted and
+		// avoids overwriting a search or favorites view.
+		if m.view == viewHome || (m.view == viewBrowse && m.crumb == "popular") {
+			return m.load(popularCmd(m.dir))
+		}
 		return m, nil
 	case titleMsg:
 		m.nowTitle = sanitizeTitle(msg.title)
@@ -248,7 +267,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		return m, tea.Batch(searchCmd(m.dir, q), m.sp.Tick)
 	case spinner.TickMsg:
-		if !m.loading {
+		if !m.loading && !m.refreshing {
 			return m, nil
 		}
 		var cmd tea.Cmd
@@ -403,6 +422,12 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.view = viewBrowse
 		m.crumb = "popular"
 		return m.load(popularCmd(m.dir))
+	case "R":
+		if !m.refreshing {
+			m.refreshing = true
+			return m, refreshCmd(m.dir)
+		}
+		return m, nil
 	case "a":
 		m.view = viewAdd
 		m.addFocus = 0

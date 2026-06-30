@@ -62,10 +62,37 @@ func popularCmd(d Searcher) tea.Cmd {
 	}
 }
 
+// initialCmd loads the locally-served initial list off the UI goroutine.
+func initialCmd(d Searcher) tea.Cmd {
+	return func() tea.Msg {
+		st, err := d.Initial(context.Background())
+		if err != nil {
+			return errMsg{err}
+		}
+		return stationsMsg{stations: st}
+	}
+}
+
+// corpusRefreshedMsg reports the result of a background corpus refresh.
+type corpusRefreshedMsg struct {
+	stations []domain.Station
+	err      error
+}
+
+// refreshCmd refreshes the corpus from Radio Browser off the UI goroutine.
+func refreshCmd(d Searcher) tea.Cmd {
+	return func() tea.Msg {
+		st, err := d.Refresh(context.Background())
+		return corpusRefreshedMsg{stations: st, err: err}
+	}
+}
+
 // Searcher is the slice of directory the TUI needs (keeps tui decoupled).
 type Searcher interface {
 	Search(ctx context.Context, query string) ([]domain.Station, error)
 	Popular(ctx context.Context) ([]domain.Station, error)
+	Initial(ctx context.Context) ([]domain.Station, error)
+	Refresh(ctx context.Context) ([]domain.Station, error)
 }
 
 // TitleMsg builds a titleMsg from outside the package (used by the app event bridge).

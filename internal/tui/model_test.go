@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -21,6 +22,14 @@ func (f *fakePlayer) Play(url string) error      { f.played = url; return nil }
 func (f *fakePlayer) Stop() error                { return nil }
 func (f *fakePlayer) Volume(int) error           { return nil }
 func (f *fakePlayer) SetNormalize(on bool) error { f.normalize = on; return nil }
+
+// stubDir satisfies Searcher with no-op local/network calls.
+type stubDir struct{}
+
+func (stubDir) Search(context.Context, string) ([]domain.Station, error) { return nil, nil }
+func (stubDir) Popular(context.Context) ([]domain.Station, error)        { return nil, nil }
+func (stubDir) Initial(context.Context) ([]domain.Station, error)        { return nil, nil }
+func (stubDir) Refresh(context.Context) ([]domain.Station, error)        { return nil, nil }
 
 var errSample = errors.New("boom")
 
@@ -81,7 +90,7 @@ func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 }
 
 func TestNewStartsOnHome(t *testing.T) {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, false, "1.0.0", t.TempDir())
 	if m.view != viewHome {
 		t.Fatalf("New should start on Home, got view %d", m.view)
 	}
@@ -445,5 +454,38 @@ func TestSettingsCycleQuality(t *testing.T) {
 	m = m.cycleQuality()
 	if m.quality == domain.QualityHighest {
 		t.Fatal("cycleQuality should change the value")
+	}
+}
+
+func TestRKeyTriggersRefresh(t *testing.T) {
+	m := Model{view: viewBrowse, dir: stubDir{}}
+	out, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+	got := out.(Model)
+	if !got.refreshing || cmd == nil {
+		t.Fatalf("R should start a refresh: refreshing=%v cmd=%v", got.refreshing, cmd)
+	}
+}
+
+func TestCorpusRefreshedClearsRefreshingAndRepullsPreview(t *testing.T) {
+	m := Model{view: viewBrowse, crumb: "popular", refreshing: true, dir: stubDir{}}
+	out, cmd := m.Update(corpusRefreshedMsg{stations: make([]domain.Station, 10)})
+	got := out.(Model)
+	if got.refreshing {
+		t.Fatal("refresh complete should clear the refreshing indicator")
+	}
+	if cmd == nil {
+		t.Fatal("on the popular preview, refresh-complete should re-pull the list")
+	}
+}
+
+func TestCorpusRefreshedDoesNotClobberSearch(t *testing.T) {
+	m := Model{view: viewBrowse, crumb: "“jazz”", refreshing: true,
+		stations: make([]domain.Station, 4), dir: stubDir{}}
+	got := mustModel(m.Update(corpusRefreshedMsg{stations: make([]domain.Station, 10)}))
+	if got.refreshing {
+		t.Fatal("refreshing should clear")
+	}
+	if len(got.stations) != 4 {
+		t.Fatalf("search results must be preserved, got %d", len(got.stations))
 	}
 }
