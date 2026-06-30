@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 )
 
@@ -13,9 +14,14 @@ const rbSample = `[
 ]`
 
 func TestRadioBrowserSearchGroups(t *testing.T) {
-	var gotUA string
+	var (
+		mu    sync.Mutex
+		gotUA string
+	)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
 		gotUA = r.Header.Get("User-Agent")
+		mu.Unlock()
 		_, _ = w.Write([]byte(rbSample))
 	}))
 	defer srv.Close()
@@ -28,8 +34,11 @@ func TestRadioBrowserSearchGroups(t *testing.T) {
 	if len(stations) != 1 || len(stations[0].Variants) != 2 {
 		t.Fatalf("want 1 station w/ 2 variants, got %+v", stations)
 	}
-	if gotUA != "radio/test" {
-		t.Fatalf("missing/incorrect User-Agent: %q", gotUA)
+	mu.Lock()
+	ua := gotUA
+	mu.Unlock()
+	if ua != "radio/test" {
+		t.Fatalf("missing/incorrect User-Agent: %q", ua)
 	}
 }
 
