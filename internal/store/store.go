@@ -160,6 +160,15 @@ func (s *Store) SaveHistory(h bool) error {
 	return s.SaveConfig(c)
 }
 
+func (s *Store) SaveUpdateCheck(v bool) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.UpdateCheck = v
+	return s.SaveConfig(c)
+}
+
 func (s *Store) SaveTheme(theme string) error {
 	c, err := s.LoadConfig()
 	if err != nil {

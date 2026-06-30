@@ -5,11 +5,29 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pedrosousa13/onda/internal/domain"
+	"github.com/pedrosousa13/onda/internal/update"
 )
 
 type stationsMsg struct{ stations []domain.Station }
 type errMsg struct{ err error }
 type titleMsg struct{ title string }
+type updateMsg struct{ status update.Status }
+type updateAppliedMsg struct{ err error }
+
+// updateCheckCmd runs the (cached) update check off the UI goroutine.
+func updateCheckCmd(current, cacheDir string) tea.Cmd {
+	return func() tea.Msg {
+		st, _ := update.Check(context.Background(), current, cacheDir)
+		return updateMsg{status: st}
+	}
+}
+
+// applyUpdateCmd performs the self-update off the UI goroutine.
+func applyUpdateCmd(st update.Status) tea.Cmd {
+	return func() tea.Msg {
+		return updateAppliedMsg{err: update.Apply(context.Background(), st)}
+	}
+}
 
 // playback state events bridged from the player.
 type playingMsg struct{}

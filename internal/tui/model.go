@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pedrosousa13/onda/internal/domain"
+	"github.com/pedrosousa13/onda/internal/update"
 )
 
 type view int
@@ -52,6 +53,7 @@ type Store interface {
 	SaveTracking(string) error
 	SaveHistory(bool) error
 	SaveTheme(string) error
+	SaveUpdateCheck(bool) error
 }
 
 type Model struct {
@@ -83,6 +85,13 @@ type Model struct {
 	loading   bool
 	crumb     string
 
+	update         update.Status
+	updateDismiss  bool
+	updateApplying bool
+	updateCheck    bool   // user preference (drives settings toggle)
+	version        string // build version, for the update check
+	updateCacheDir string // where update-cache.json lives
+
 	search   textinput.Model
 	addName  textinput.Model
 	addURL   textinput.Model
@@ -90,7 +99,7 @@ type Model struct {
 	addFocus int // 0=name, 1=url, 2=bitrate
 }
 
-func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string) Model {
+func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck bool, version, updateCacheDir string) Model {
 	search := textinput.New()
 	search.Placeholder = "search stations, country, or genre…"
 	name := textinput.New()
@@ -110,6 +119,7 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 		width: 80, height: 24, favKeys: map[string]bool{},
 		hoverIdx: -1,
 		sp:       sp, view: viewHome, crumb: "home",
+		updateCheck: updateCheck, version: version, updateCacheDir: updateCacheDir,
 		search: search, addName: name, addURL: url, addBr: br,
 	}
 	// Seed Home with favorites; if there are none, Init fetches a Popular preview.
@@ -127,10 +137,17 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 }
 
 func (m Model) Init() tea.Cmd {
+	cmds := []tea.Cmd{}
 	if m.loading { // no favorites yet → load a Popular preview for Home
-		return tea.Batch(popularCmd(m.dir), m.sp.Tick)
+		cmds = append(cmds, popularCmd(m.dir), m.sp.Tick)
 	}
-	return nil
+	if m.updateCheck && m.version != "" && !strings.HasSuffix(m.version, "-dev") {
+		cmds = append(cmds, updateCheckCmd(m.version, m.updateCacheDir))
+	}
+	if len(cmds) == 0 {
+		return nil
+	}
+	return tea.Batch(cmds...)
 }
 
 // load starts an async station fetch and shows the spinner until it returns.
@@ -178,6 +195,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.attempt == m.playAttempt && m.phase == phaseConnecting {
 			m.phase = phaseFailed
 			m.playErr = "still connecting — the stream may be slow or offline"
+		}
+		return m, nil
+	case updateMsg:
+		m.update = msg.status
+		return m, nil
+	case updateAppliedMsg:
+		m.updateApplying = false
+		if msg.err != nil {
+			m.status = "update failed: " + msg.err.Error()
+		} else {
+			m.status = "updated to " + m.update.Latest + " — restart onda to apply"
 		}
 		return m, nil
 	case spinner.TickMsg:
@@ -289,6 +317,14 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.changeVariant(1) // lower quality
 	case "f":
 		return m.toggleFavorite()
+	case "u":
+		if m.update.SelfUpdatable && !m.updateApplying {
+			m.updateApplying = true
+			return m, applyUpdateCmd(m.update)
+		}
+	case "U": // dismiss the update banner
+		m.updateDismiss = true
+		return m, nil
 	case "/":
 		m.view = viewSearch
 		m.search.SetValue("")

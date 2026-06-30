@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/pedrosousa13/onda/compare/v1.0.0...v1.1.0) (2026-06-30)
+
+
+### Features
+
+* cross-platform auto-update (notify + opt-in self-update) ([#6](https://github.com/pedrosousa13/onda/issues/6)) ([6b3185d](https://github.com/pedrosousa13/onda/commit/6b3185d0db9fd00664a6fc8a76924713a86def3f))
+
 ## 1.0.0 (2026-06-30)
 
 
