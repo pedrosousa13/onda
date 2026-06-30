@@ -1,0 +1,12 @@
+# OS / editor
+.DS_Store
+*.swp
+
+# Go build output
+/radio
+/dist/
+*.test
+*.out
+
+# Local env
+.env
