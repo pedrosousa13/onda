@@ -18,6 +18,23 @@ func TestConfigDefaults(t *testing.T) {
 	if c.HistoryEnabled {
 		t.Fatal("history must default to disabled")
 	}
+	if c.Volume != 100 {
+		t.Fatalf("default volume should be 100, got %d", c.Volume)
+	}
+}
+
+func TestVolumeRoundTrip(t *testing.T) {
+	s := &Store{dir: t.TempDir()}
+	if err := s.SaveVolume(37); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Volume != 37 {
+		t.Fatalf("volume did not round-trip, got %d", got.Volume)
+	}
 }
 
 func TestConfigRoundTrip(t *testing.T) {

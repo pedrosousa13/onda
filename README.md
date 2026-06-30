@@ -164,7 +164,8 @@ Files:
 - `config.toml` — `quality` (highest|balanced|lowest), `tracking`
   (never|opt-in|opt-out), `history_enabled`, `theme`, `update_check`
   (daily update check; `true` by default), `live_search` (search as you type;
-  `true` by default — set `false` for enter-to-search)
+  `true` by default — set `false` for enter-to-search), `volume` (0–100,
+  restored on launch)
 - `favorites.json`, `custom.json` — your favorites and added stations
 
 Everything onda persists lives in this one directory in plain TOML/JSON, so you

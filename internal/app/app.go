@@ -34,6 +34,11 @@ func Run() error {
 	if err != nil {
 		return err
 	}
+	if cfg.Volume < 0 {
+		cfg.Volume = 0
+	} else if cfg.Volume > 100 {
+		cfg.Volume = 100
+	}
 
 	showFirstRunNoticeOnce(st)
 
@@ -54,9 +59,10 @@ func Run() error {
 		return err
 	}
 	defer p.Close()
+	_ = p.Volume(cfg.Volume) // restore the last session's volume
 
 	model := tui.New(dir, p, st, domain.QualityPref(cfg.Quality), cfg.Tracking,
-		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, cfg.LiveSearch, version, cacheDir)
+		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, cfg.LiveSearch, cfg.Volume, version, cacheDir)
 	prog := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseAllMotion())
 
 	// Bridge player events into the TUI.

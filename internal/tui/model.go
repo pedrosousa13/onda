@@ -55,6 +55,7 @@ type Store interface {
 	SaveTheme(string) error
 	SaveUpdateCheck(bool) error
 	SaveLiveSearch(bool) error
+	SaveVolume(int) error
 }
 
 type Model struct {
@@ -102,7 +103,7 @@ type Model struct {
 	addFocus   int // 0=name, 1=url, 2=bitrate
 }
 
-func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck, liveSearch bool, version, updateCacheDir string) Model {
+func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck, liveSearch bool, volume int, version, updateCacheDir string) Model {
 	search := textinput.New()
 	search.Placeholder = "search stations, country, or genre…"
 	name := textinput.New()
@@ -118,7 +119,7 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 	m := Model{
 		dir: dir, player: p, store: st,
 		quality: quality, tracking: tracking, history: history,
-		volume: 100, themeName: t.Name, st: newStyles(t),
+		volume: clampVolume(volume), themeName: t.Name, st: newStyles(t),
 		width: 80, height: 24, favKeys: map[string]bool{},
 		hoverIdx: -1,
 		sp:       sp, view: viewHome, crumb: "home",
@@ -458,16 +459,24 @@ func indexOfVariant(vs []domain.StreamVariant, target domain.StreamVariant) int 
 }
 
 func (m Model) changeVolume(delta int) (tea.Model, tea.Cmd) {
-	m.volume += delta
-	if m.volume < 0 {
-		m.volume = 0
-	}
-	if m.volume > 100 {
-		m.volume = 100
-	}
+	m.volume = clampVolume(m.volume + delta)
 	_ = m.player.Volume(m.volume)
+	if m.store != nil {
+		_ = m.store.SaveVolume(m.volume)
+	}
 	m.status = "volume " + strconv.Itoa(m.volume) + "%"
 	return m, nil
+}
+
+// clampVolume bounds a volume to the 0–100 range.
+func clampVolume(v int) int {
+	if v < 0 {
+		return 0
+	}
+	if v > 100 {
+		return 100
+	}
+	return v
 }
 
 func (m Model) toggleFavorite() (Model, tea.Cmd) {

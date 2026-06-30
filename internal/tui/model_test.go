@@ -40,6 +40,7 @@ type fakeStore struct {
 	adds, removes int
 	isFav         bool
 	custom        []domain.Station
+	savedVolume   int
 }
 
 func (f *fakeStore) Favorites() ([]domain.Station, error)    { return nil, nil }
@@ -53,6 +54,7 @@ func (f *fakeStore) SaveHistory(bool) error                  { return nil }
 func (f *fakeStore) SaveTheme(string) error                  { return nil }
 func (f *fakeStore) SaveUpdateCheck(bool) error              { return nil }
 func (f *fakeStore) SaveLiveSearch(bool) error               { return nil }
+func (f *fakeStore) SaveVolume(v int) error                  { f.savedVolume = v; return nil }
 
 func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 	fs := &fakeStore{}
@@ -67,9 +69,33 @@ func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 }
 
 func TestNewStartsOnHome(t *testing.T) {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, "1.0.0", t.TempDir())
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, "1.0.0", t.TempDir())
 	if m.view != viewHome {
 		t.Fatalf("New should start on Home, got view %d", m.view)
+	}
+}
+
+func TestNewRestoresVolume(t *testing.T) {
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 42, "1.0.0", t.TempDir())
+	if m.volume != 42 {
+		t.Fatalf("New should restore the saved volume, got %d", m.volume)
+	}
+	// Out-of-range values from a hand-edited config are clamped.
+	m = New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 150, "1.0.0", t.TempDir())
+	if m.volume != 100 {
+		t.Fatalf("New should clamp volume to 100, got %d", m.volume)
+	}
+}
+
+func TestChangeVolumePersistsAndClamps(t *testing.T) {
+	fs := &fakeStore{}
+	m := Model{store: fs, player: &fakePlayer{}, volume: 98}
+	got := mustModel(m.changeVolume(5)) // 98+5 = 103 → clamp to 100
+	if got.volume != 100 {
+		t.Fatalf("volume should clamp to 100, got %d", got.volume)
+	}
+	if fs.savedVolume != 100 {
+		t.Fatalf("volume should be persisted, got %d", fs.savedVolume)
 	}
 }
 
