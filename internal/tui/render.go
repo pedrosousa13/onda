@@ -191,10 +191,14 @@ func (m Model) renderRow(w, idx int, s domain.Station) string {
 	}
 
 	var marker, nameS string
-	if sel {
+	switch {
+	case sel:
 		marker = m.st.SelBar.Render("▌ ")
 		nameS = m.st.SelName.Render(name)
-	} else {
+	case idx == m.hoverIdx:
+		marker = m.st.Meta.Render("· ") // mouse hover cue
+		nameS = m.st.Item.Render(name)
+	default:
 		marker = "  "
 		nameS = m.st.Item.Render(name)
 	}

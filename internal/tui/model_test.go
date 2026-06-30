@@ -2,11 +2,18 @@ package tui
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pedrosousa13/onda/internal/domain"
 )
+
+type fakePlayer struct{ played string }
+
+func (f *fakePlayer) Play(url string) error { f.played = url; return nil }
+func (f *fakePlayer) Stop() error           { return nil }
+func (f *fakePlayer) Volume(int) error      { return nil }
 
 var errSample = errors.New("boom")
 
@@ -107,6 +114,35 @@ func TestConnectTimeoutGuard(t *testing.T) {
 }
 
 func mustModel(model tea.Model, _ tea.Cmd) Model { return model.(Model) }
+
+func TestMouseWheelMovesCursor(t *testing.T) {
+	m := Model{view: viewBrowse, stations: []domain.Station{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
+	if got := mustModel(m.Update(tea.MouseMsg{Button: tea.MouseButtonWheelDown})); got.cursor != 1 {
+		t.Fatalf("wheel down should move cursor to 1, got %d", got.cursor)
+	}
+	m.cursor = 2 // last
+	if got := mustModel(m.Update(tea.MouseMsg{Button: tea.MouseButtonWheelDown})); got.cursor != 2 {
+		t.Fatalf("wheel down at end should stay at 2, got %d", got.cursor)
+	}
+}
+
+func TestMouseClickSelectsThenPlays(t *testing.T) {
+	stations := make([]domain.Station, 5)
+	for i := range stations {
+		stations[i] = domain.Station{Name: fmt.Sprintf("s%d", i), Variants: []domain.StreamVariant{{URL: "u", Bitrate: 128}}}
+	}
+	m := Model{view: viewBrowse, height: 20, stations: stations, player: &fakePlayer{}, quality: domain.QualityHighest}
+	// Y=5 in a list view (rowStartY=3) → station index 2.
+	got := mustModel(m.Update(tea.MouseMsg{Button: tea.MouseButtonLeft, Action: tea.MouseActionPress, Y: 5}))
+	if got.cursor != 2 {
+		t.Fatalf("click at Y=5 should select station 2, got cursor %d", got.cursor)
+	}
+	// Clicking the already-selected row plays it.
+	played := mustModel(got.Update(tea.MouseMsg{Button: tea.MouseButtonLeft, Action: tea.MouseActionPress, Y: 5}))
+	if !played.isPlaying || played.phase != phaseConnecting {
+		t.Fatalf("second click should start playing, got isPlaying=%v phase=%d", played.isPlaying, played.phase)
+	}
+}
 
 func TestSettingsCycleQuality(t *testing.T) {
 	m := Model{quality: domain.QualityHighest}

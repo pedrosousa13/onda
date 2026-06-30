@@ -61,6 +61,7 @@ type Model struct {
 	view      view
 	stations  []domain.Station
 	cursor    int
+	hoverIdx  int // station row under the mouse, -1 if none
 	status    string
 	nowTitle  string
 	playing   domain.Station
@@ -107,7 +108,8 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 		quality: quality, tracking: tracking, history: history,
 		volume: 100, themeName: t.Name, st: newStyles(t),
 		width: 80, height: 24, favKeys: map[string]bool{},
-		sp: sp, view: viewHome, crumb: "home",
+		hoverIdx: -1,
+		sp:       sp, view: viewHome, crumb: "home",
 		search: search, addName: name, addURL: url, addBr: br,
 	}
 	// Seed Home with favorites; if there are none, Init fetches a Popular preview.
@@ -185,10 +187,65 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.sp, cmd = m.sp.Update(msg)
 		return m, cmd
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	}
 	return m, nil
+}
+
+// handleMouse maps wheel/click/hover to list actions. Input views (search,
+// add, settings) keep their keyboard focus and ignore the mouse.
+func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	switch m.view {
+	case viewSearch, viewAdd, viewSettings:
+		return m, nil
+	}
+	switch msg.Button {
+	case tea.MouseButtonWheelUp:
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	case tea.MouseButtonWheelDown:
+		if m.cursor < len(m.stations)-1 {
+			m.cursor++
+		}
+	case tea.MouseButtonLeft:
+		if msg.Action == tea.MouseActionPress {
+			if idx := m.stationAtY(msg.Y); idx >= 0 {
+				if idx == m.cursor {
+					return m.playSelected() // click the selected row again → play
+				}
+				m.cursor = idx
+			}
+		}
+	default:
+		if msg.Action == tea.MouseActionMotion {
+			m.hoverIdx = m.stationAtY(msg.Y)
+		}
+	}
+	return m, nil
+}
+
+// stationAtY maps a screen row to a visible station index, or -1 if the row
+// isn't over a station. Geometry mirrors viewList/viewHome layout.
+func (m Model) stationAtY(y int) int {
+	rowStartY := 3 // header(2) + blank(1)
+	listRows := m.height - chromeHeight
+	if m.view == viewHome {
+		rowStartY = 11 // header(2)+blank(1)+panel(5)+hint(1)+blank(1)+label(1)
+		listRows = m.height - 13
+	}
+	if listRows < 3 {
+		listRows = 3
+	}
+	start, end := windowBounds(m.cursor, len(m.stations), listRows)
+	idx := start + (y - rowStartY)
+	if y >= rowStartY && idx >= start && idx < end && idx < len(m.stations) {
+		return idx
+	}
+	return -1
 }
 
 func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
