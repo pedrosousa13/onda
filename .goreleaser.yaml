@@ -1,0 +1,55 @@
+version: 2
+project_name: radio
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: .
+    binary: radio
+    env: [CGO_ENABLED=0]
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/pedrosousa13/radio/internal/app.version={{.Version}}
+
+archives:
+  - id: default
+    # tar.gz everywhere except Windows, which gets a .zip
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+brews:
+  - repository:
+      owner: pedrosousa13
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/pedrosousa13/radio"
+    description: "Ethical, privacy-minded radios-of-the-world TUI"
+    license: "MIT"
+    dependencies:
+      - name: mpv
+    install: |
+      bin.install "radio"
+    test: |
+      system "#{bin}/radio", "--version"
+
+scoops:
+  - repository:
+      owner: pedrosousa13
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}"
+    homepage: "https://github.com/pedrosousa13/radio"
+    description: "Ethical, privacy-minded radios-of-the-world TUI"
+    license: MIT
+    # Scoop can't force an mpv dependency the way Homebrew does; the README
+    # tells Windows users to `scoop install mpv`. The app also prints a clear
+    # "install mpv" message if it is missing.
+
+release:
+  prerelease: auto
