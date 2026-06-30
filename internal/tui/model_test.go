@@ -11,10 +11,13 @@ import (
 	"github.com/pedrosousa13/onda/internal/update"
 )
 
-type fakePlayer struct{ played string }
+type fakePlayer struct {
+	played  string
+	stopped bool
+}
 
 func (f *fakePlayer) Play(url string) error { f.played = url; return nil }
-func (f *fakePlayer) Stop() error           { return nil }
+func (f *fakePlayer) Stop() error           { f.stopped = true; return nil }
 func (f *fakePlayer) Volume(int) error      { return nil }
 
 var errSample = errors.New("boom")
@@ -69,6 +72,42 @@ func TestNewStartsOnHome(t *testing.T) {
 	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, "1.0.0", t.TempDir())
 	if m.view != viewHome {
 		t.Fatalf("New should start on Home, got view %d", m.view)
+	}
+}
+
+func TestSleepTimerCycles(t *testing.T) {
+	m := Model{}
+	for _, want := range []int{15, 30, 60, 0} {
+		m = mustModel(m.cycleSleep())
+		if m.sleepMins != want {
+			t.Fatalf("cycleSleep want %d, got %d", want, m.sleepMins)
+		}
+	}
+}
+
+func TestSleepTimerDecrements(t *testing.T) {
+	m := Model{player: &fakePlayer{}, isPlaying: true, sleepMins: 30, sleepSeq: 1}
+	if got := mustModel(m.Update(sleepTickMsg{seq: 1})); got.sleepMins != 29 {
+		t.Fatalf("tick should decrement to 29, got %d", got.sleepMins)
+	}
+}
+
+func TestSleepTimerExpiryStops(t *testing.T) {
+	fp := &fakePlayer{}
+	m := Model{player: fp, isPlaying: true, sleepMins: 1, sleepSeq: 1}
+	got := mustModel(m.Update(sleepTickMsg{seq: 1}))
+	if got.sleepMins != 0 || got.isPlaying || !fp.stopped {
+		t.Fatalf("expiry should stop playback, got mins=%d playing=%v stopped=%v",
+			got.sleepMins, got.isPlaying, fp.stopped)
+	}
+}
+
+func TestSleepTimerStaleTickIgnored(t *testing.T) {
+	fp := &fakePlayer{}
+	m := Model{player: fp, isPlaying: true, sleepMins: 30, sleepSeq: 5}
+	got := mustModel(m.Update(sleepTickMsg{seq: 3})) // older generation
+	if got.sleepMins != 30 || fp.stopped {
+		t.Fatalf("stale tick should be ignored, got mins=%d stopped=%v", got.sleepMins, fp.stopped)
 	}
 }
 

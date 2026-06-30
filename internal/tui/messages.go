@@ -40,6 +40,10 @@ type connectTimeoutMsg struct{ attempt int }
 // searchDebounceMsg fires after typing pauses; seq guards against stale ticks.
 type searchDebounceMsg struct{ seq int }
 
+// sleepTickMsg fires once a minute while a sleep timer is set; seq guards
+// against stale ticks left over from a cancelled or restarted timer.
+type sleepTickMsg struct{ seq int }
+
 // searchCmd runs a directory search off the UI goroutine.
 func searchCmd(d Searcher, query string) tea.Cmd {
 	return func() tea.Msg {
