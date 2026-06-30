@@ -40,6 +40,7 @@ func (f *fakeStore) AddCustom(s domain.Station) error        { f.custom = append
 func (f *fakeStore) SaveQuality(domain.QualityPref) error    { return nil }
 func (f *fakeStore) SaveTracking(string) error               { return nil }
 func (f *fakeStore) SaveHistory(bool) error                  { return nil }
+func (f *fakeStore) SaveTheme(string) error                  { return nil }
 
 func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 	fs := &fakeStore{}
