@@ -33,6 +33,19 @@ var formatTokens = map[string]bool{
 	"aac": true, "mp3": true, "flac": true, "hifi": true, "ogg": true, "hd": true,
 }
 
+// broadcasterPrefixes are public-broadcaster acronyms stripped from the START of
+// a name so "RTP Antena 3" ≈ "Antena 3". Conservative list; country stays in the
+// key, so cross-country collisions can't happen.
+var broadcasterPrefixes = map[string]bool{
+	"rtp": true, "bbc": true, "npr": true, "rai": true, "rte": true, "rtve": true,
+	"ard": true, "zdf": true, "orf": true, "srf": true, "yle": true, "nrk": true,
+}
+
+// trailingNoise are suffix words dropped from a name ("Antena 3 - Main" → "Antena 3").
+var trailingNoise = map[string]bool{
+	"main": true, "hd": true, "stream": true, "official": true,
+}
+
 // groupKey merges variants of the same station: it strips quality/format
 // parentheticals and punctuation from the name, then keys on name + country.
 // So "FIP Jazz", "FIP Jazz (Hi-Fi)" and "FIP Jazz (hifi.aac)" collapse to one.
@@ -51,6 +64,14 @@ func normalizeName(name string) string {
 			continue
 		}
 		kept = append(kept, w)
+	}
+	// Strip a leading broadcaster acronym ("RTP Antena 3" → "Antena 3").
+	if len(kept) > 1 && broadcasterPrefixes[kept[0]] {
+		kept = kept[1:]
+	}
+	// Strip trailing noise words ("Antena 3 Main" → "Antena 3").
+	for len(kept) > 1 && trailingNoise[kept[len(kept)-1]] {
+		kept = kept[:len(kept)-1]
 	}
 	out := strings.Join(kept, " ")
 	if out == "" { // name was only format tokens — fall back to punctuation-stripped form

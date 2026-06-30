@@ -140,6 +140,16 @@ cache is still served when you're offline.
 
 Defaults are privacy-first: quality `highest`, tracking `never`, history disabled.
 
+## On duplicate stations
+
+Radio Browser is crowd-sourced and has **no canonical station IDs**, so the same
+station often appears many times (different bitrates, `(Hi-Fi)`/`(metadata)`
+suffixes, broadcaster prefixes like `RTP `, punctuation). `radio` merges these
+heuristically — normalizing names and grouping by name + country, then offering
+the distinct bitrates as a `[ ]` chooser. It's best-effort: a few stragglers may
+remain rather than risk merging genuinely different stations. Perfect grouping
+isn't possible without canonical IDs the source doesn't provide.
+
 ## Data sources & credits
 
 - [Radio Browser](https://www.radio-browser.info) — public-domain station directory
