@@ -68,6 +68,53 @@ func (m Model) viewList() string {
 	return b.String()
 }
 
+// viewHome is the landing screen: now-playing hero on top, then favorites
+// (or a Popular preview when there are none).
+func (m Model) viewHome() string {
+	var b strings.Builder
+	b.WriteString(m.header("home"))
+	b.WriteString("\n\n")
+	b.WriteString(m.nowPanel())
+	b.WriteString("\n\n")
+
+	hasFavs := len(m.favKeys) > 0
+	if hasFavs {
+		b.WriteString(m.st.Crumb.Render("favorites") + "\n")
+	} else {
+		b.WriteString(m.st.Crumb.Render("popular") +
+			m.st.Help.Render("   (no favorites yet — press ") + m.st.Key.Render("f") +
+			m.st.Help.Render(" on any station to save it)") + "\n")
+	}
+
+	// header(2) + blank(1) + panel(5) + blank(1) + label(1) + footer(1)
+	listRows := m.height - 11
+	if listRows < 3 {
+		listRows = 3
+	}
+	if m.loading && len(m.stations) == 0 {
+		b.WriteString(m.st.Meta.Render("  " + m.sp.View() + " loading…") + "\n")
+	} else if len(m.stations) == 0 {
+		b.WriteString(m.st.Meta.Render("  nothing to show") + "\n")
+	} else {
+		start, end := windowBounds(m.cursor, len(m.stations), listRows)
+		for i := start; i < end; i++ {
+			b.WriteString(m.renderRow(m.width, i, m.stations[i]) + "\n")
+		}
+	}
+	b.WriteString("\n")
+	b.WriteString(m.homeFooter())
+	return b.String()
+}
+
+func (m Model) homeFooter() string {
+	pairs := [][2]string{
+		{"↑↓", "move"}, {"⏎", "play"}, {"+/-", "vol"}, {"[ ]", "quality"},
+		{"/", "search"}, {"p", "popular"}, {"F", "favorites"}, {"a", "add"},
+		{",", "settings"}, {"q", "quit"},
+	}
+	return m.renderFooterPairs(pairs)
+}
+
 // header renders the title line plus a right-aligned view label and a rule.
 func (m Model) header(crumb string) string {
 	left := m.st.Title.Render("radio") + m.st.Subtitle.Render("  ·  wander the world")
@@ -204,6 +251,11 @@ func (m Model) footer() string {
 		{"[ ]", "quality"}, {"f", "★"}, {"F", "favs"}, {"/", "search"},
 		{"a", "add"}, {",", "settings"}, {"esc", "home"}, {"q", "quit"},
 	}
+	return m.renderFooterPairs(pairs)
+}
+
+// renderFooterPairs lays out key/label hints, dropping trailing ones that don't fit.
+func (m Model) renderFooterPairs(pairs [][2]string) string {
 	sep := m.st.Help.Render("  ")
 	out := ""
 	wsum := 0

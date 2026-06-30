@@ -11,8 +11,7 @@ import (
 func (m Model) updateSettings(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "esc", "q", ",":
-		m.view = viewBrowse
-		return m, nil
+		return m.goHome()
 	case "1":
 		m = m.cycleQuality()
 		if m.store != nil {

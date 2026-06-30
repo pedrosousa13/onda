@@ -9,9 +9,8 @@ import (
 func (m Model) updateAdd(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "esc":
-		m.view = viewBrowse
 		m.blurAdd()
-		return m, nil
+		return m.goHome()
 	case "tab", "down":
 		m.addFocus = (m.addFocus + 1) % 3
 		m.focusAdd()

@@ -54,6 +54,21 @@ func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 	}
 }
 
+func TestNewStartsOnHome(t *testing.T) {
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha")
+	if m.view != viewHome {
+		t.Fatalf("New should start on Home, got view %d", m.view)
+	}
+}
+
+func TestGoHomeSetsHomeView(t *testing.T) {
+	m := Model{view: viewSearch, store: &fakeStore{}}
+	updated, _ := m.goHome()
+	if got := updated.(Model); got.view != viewHome {
+		t.Fatalf("goHome should switch to Home, got view %d", got.view)
+	}
+}
+
 func TestSettingsCycleQuality(t *testing.T) {
 	m := Model{quality: domain.QualityHighest}
 	m = m.cycleQuality()

@@ -84,6 +84,8 @@ radio
 | `+` / `-` | Volume up / down |
 | `f` | Toggle favorite on selected station |
 | `F` | Show favorites |
+| `p` | Popular (top-voted worldwide) |
+| `esc` | Back to Home |
 | `/` | Search |
 | `a` | Add a custom station |
 | `,` | Settings |
@@ -103,9 +105,11 @@ the **theme**; `esc` to go back. Changes are saved immediately.
 When a station offers multiple bitrates, `radio` auto-picks per your quality
 setting (default: highest).
 
-On launch you land on **Popular** — the top-voted stations worldwide (from Radio
-Browser's open ranking; reading it reports nothing about you). Press `/` to search
-or `esc` to return to Popular.
+On launch you land on **Home** — your now-playing panel plus your favorites (or a
+**Popular** preview, the top-voted stations worldwide, until you've saved any).
+From anywhere: `esc` returns Home, `p` opens the full Popular list, `F` favorites,
+`/` search. Popular comes from Radio Browser's open ranking — reading it reports
+nothing about you.
 
 ### Themes
 
