@@ -40,6 +40,23 @@ func TestConfigRoundTrip(t *testing.T) {
 	}
 }
 
+func TestUpdateCheckDefaultAndRoundTrip(t *testing.T) {
+	if !DefaultConfig().UpdateCheck {
+		t.Fatal("UpdateCheck should default to true (opt-out)")
+	}
+	s := &Store{dir: t.TempDir()}
+	if err := s.SaveUpdateCheck(false); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.UpdateCheck {
+		t.Fatal("UpdateCheck did not round-trip as false")
+	}
+}
+
 func TestFavoritesRoundTrip(t *testing.T) {
 	s := &Store{dir: t.TempDir()}
 	if err := s.AddFavorite(domain.Station{Name: "KEXP", Homepage: "kexp.org"}); err != nil {

@@ -55,7 +55,8 @@ func Run() error {
 	}
 	defer p.Close()
 
-	model := tui.New(dir, p, st, domain.QualityPref(cfg.Quality), cfg.Tracking, cfg.HistoryEnabled, cfg.Theme)
+	model := tui.New(dir, p, st, domain.QualityPref(cfg.Quality), cfg.Tracking,
+		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, version, cacheDir)
 	prog := tea.NewProgram(model, tea.WithAltScreen())
 
 	// Bridge player events into the TUI.
@@ -93,6 +94,7 @@ func showFirstRunNoticeOnce(st *store.Store) {
 	fmt.Println("what you're playing. Searches go to the public Radio Browser service.")
 	fmt.Println("onda itself never records, rebroadcasts, or reports your listening —")
 	fmt.Println("popularity tracking is off by default (change it in settings).")
+	fmt.Println("onda also checks GitHub once a day for new versions; turn this off in settings.")
 	fmt.Println()
 	fmt.Println("Shown once. Press Enter to continue — you won't see this again.")
 	fmt.Scanln()

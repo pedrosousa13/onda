@@ -64,6 +64,22 @@ Download the archive for your platform from the
 [Releases](https://github.com/pedrosousa13/onda/releases) page and put `onda`
 on your `PATH`. Ensure `mpv` is installed.
 
+## Updating
+
+onda checks GitHub once a day for a newer release and shows a one-line banner
+when one is available. How you update depends on how you installed it:
+
+- **Homebrew:** `brew upgrade --cask onda`
+- **Scoop:** `scoop update onda`
+- **Prebuilt binary:** press <kbd>u</kbd> on the banner to update in place — onda
+  downloads the matching release archive, verifies its SHA256 against the
+  release's `checksums.txt`, and atomically replaces itself. Press <kbd>U</kbd>
+  to dismiss the banner.
+
+The check is a single request to the public GitHub API (no account, no token).
+It's on by default; turn it off in settings (`,` then `5`). Releases are
+checksum-verified today; cryptographic signing is a planned follow-up.
+
 ## Usage
 
 Launch:
@@ -89,6 +105,7 @@ onda
 | `/` | Search |
 | `a` | Add a custom station |
 | `,` | Settings |
+| `u` / `U` | Update onda (when offered) / dismiss the update banner |
 | `esc` | Back to browse |
 | `q` | Quit |
 
@@ -102,7 +119,8 @@ locally and appear alongside everything else.
 
 **Settings** — `1` cycles audio quality (highest / balanced / lowest), `2` cycles
 popularity tracking (never / opt-in / opt-out), `3` toggles play history, `4` cycles
-the **theme**; `esc` to go back. Changes are saved immediately.
+the **theme**, `5` toggles the daily update check; `esc` to go back. Changes are
+saved immediately.
 
 When a station offers multiple bitrates, `onda` auto-picks per your quality
 setting (default: highest).
@@ -131,12 +149,14 @@ Config and data live under your OS config directory (resolved via Go's
 Files:
 
 - `config.toml` — `quality` (highest|balanced|lowest), `tracking`
-  (never|opt-in|opt-out), `history_enabled`, `theme`
+  (never|opt-in|opt-out), `history_enabled`, `theme`, `update_check`
+  (daily update check; `true` by default)
 - `favorites.json`, `custom.json` — your favorites and added stations
 
 Cached Radio Browser results live under your OS cache directory
 (`os.UserCacheDir`, e.g. `~/.cache/onda/` on Linux) with a 24-hour TTL; stale
-cache is still served when you're offline.
+cache is still served when you're offline. The update check caches its result
+there too (`update-cache.json`), so onda hits GitHub at most once a day.
 
 Defaults are privacy-first: quality `highest`, tracking `never`, history disabled.
 

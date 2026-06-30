@@ -25,11 +25,17 @@ func (m Model) viewList() string {
 
 	var b strings.Builder
 	b.WriteString(m.header(crumb))
+	banner := m.updateBanner()
+	reserved := chromeHeight
+	if banner != "" {
+		b.WriteString("\n" + banner)
+		reserved++ // banner consumes one line below the header
+	}
 	b.WriteString("\n\n")
 
 	if m.loading && len(m.stations) == 0 {
 		b.WriteString(m.st.Meta.Render("  "+m.sp.View()+" finding stations…") + "\n")
-		for i := 1; i < m.height-chromeHeight; i++ {
+		for i := 1; i < m.height-reserved; i++ {
 			b.WriteString("\n")
 		}
 		b.WriteString(m.nowPanel())
@@ -38,7 +44,7 @@ func (m Model) viewList() string {
 		return b.String()
 	}
 
-	listRows := m.height - chromeHeight
+	listRows := m.height - reserved
 	if listRows < 3 {
 		listRows = 3
 	}
@@ -125,6 +131,29 @@ func (m Model) header(crumb string) string {
 	}
 	rule := m.st.Rule.Render(strings.Repeat("─", max(1, m.width)))
 	return left + strings.Repeat(" ", gap) + right + "\n" + rule
+}
+
+// updateBanner is a one-line notice shown under the header when a newer onda
+// release exists. Its text branches on how onda was installed.
+func (m Model) updateBanner() string {
+	if !m.update.Available || m.updateDismiss {
+		return ""
+	}
+	v := m.update.Latest
+	var msg string
+	switch {
+	case m.updateApplying:
+		msg = "updating to " + v + "…"
+	case m.update.SelfUpdatable:
+		msg = v + " available — press u to update"
+	case m.update.InstallKind == "homebrew":
+		msg = v + " available — run `brew upgrade --cask onda`"
+	case m.update.InstallKind == "scoop":
+		msg = v + " available — run `scoop update onda`"
+	default:
+		msg = v + " available — see github.com/pedrosousa13/onda/releases"
+	}
+	return m.st.Meta.Render("  ▲ "+msg) + m.st.Help.Render("  (U dismiss)")
 }
 
 // renderRow lays out one station: ▌ name … country · 128k ★
