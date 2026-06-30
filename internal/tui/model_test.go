@@ -201,6 +201,44 @@ func TestPlaySelectedResetsReconnectBudget(t *testing.T) {
 	}
 }
 
+func TestBufferingFromPlaying(t *testing.T) {
+	m := Model{phase: phasePlaying, isPlaying: true}
+	if got := mustModel(m.Update(bufferingMsg{})); got.phase != phaseBuffering {
+		t.Fatalf("buffering while playing should enter phaseBuffering, got %d", got.phase)
+	}
+}
+
+func TestBufferingIgnoredWhenConnecting(t *testing.T) {
+	m := Model{phase: phaseConnecting}
+	if got := mustModel(m.Update(bufferingMsg{})); got.phase != phaseConnecting {
+		t.Fatalf("buffering while connecting should be ignored, got %d", got.phase)
+	}
+}
+
+func TestIdleDuringBufferingDoesNotStop(t *testing.T) {
+	m := Model{phase: phaseBuffering, isPlaying: true}
+	got := mustModel(m.Update(idleMsg{}))
+	if got.phase != phaseBuffering || !got.isPlaying {
+		t.Fatalf("idle during buffering should not stop, got phase=%d playing=%v", got.phase, got.isPlaying)
+	}
+}
+
+func TestPlayingClearsBuffering(t *testing.T) {
+	m := Model{phase: phaseBuffering}
+	got := mustModel(m.Update(playingMsg{}))
+	if got.phase != phasePlaying || !got.isPlaying {
+		t.Fatalf("playing should clear buffering, got phase=%d playing=%v", got.phase, got.isPlaying)
+	}
+}
+
+func TestEndedReconnectsFromBuffering(t *testing.T) {
+	st := domain.Station{Name: "X", Variants: []domain.StreamVariant{{URL: "u", Bitrate: 128}}}
+	m := Model{phase: phaseBuffering, playing: st, varIdx: 0, player: &fakePlayer{}}
+	if got := mustModel(m.Update(endedMsg{})); got.phase != phaseReconnecting {
+		t.Fatalf("a drop while buffering should reconnect, got phase=%d", got.phase)
+	}
+}
+
 func mustModel(model tea.Model, _ tea.Cmd) Model { return model.(Model) }
 
 func searchModel(query string, seq int) Model {

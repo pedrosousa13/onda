@@ -125,6 +125,8 @@ While a stream connects, the now-playing panel shows **`connecting…`**, then t
 song title once audio starts — or a clear message if the stream can't be reached.
 If a playing stream drops, onda automatically tries to reconnect (showing
 **`reconnecting…`**), backing off between attempts and giving up after a few tries.
+A brief mid-stream stall shows **`buffering…`** and clears itself once the stream
+catches up.
 
 **Add a station** — `tab` (or `↑`/`↓`) to move between *name*, *URL*, and
 *bitrate* (optional); `enter` to save; `esc` to cancel. Custom stations are saved
