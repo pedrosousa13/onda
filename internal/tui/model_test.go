@@ -169,6 +169,29 @@ func TestSearchDebounceMinLength(t *testing.T) {
 	}
 }
 
+func TestSearchArrowNavigatesResults(t *testing.T) {
+	m := searchModel("kexp", 1)
+	m.stations = make([]domain.Station, 3)
+	if got := mustModel(m.updateSearch(tea.KeyMsg{Type: tea.KeyDown})); got.cursor != 1 {
+		t.Fatalf("down should move cursor to 1, got %d", got.cursor)
+	}
+}
+
+func TestSearchEnterPlaysSelected(t *testing.T) {
+	m := searchModel("kexp", 1)
+	m.player = &fakePlayer{}
+	m.quality = domain.QualityHighest
+	m.stations = []domain.Station{
+		{Name: "a", Variants: []domain.StreamVariant{{URL: "u", Bitrate: 128}}},
+		{Name: "b", Variants: []domain.StreamVariant{{URL: "v", Bitrate: 128}}},
+	}
+	m.cursor = 1
+	got := mustModel(m.updateSearch(tea.KeyMsg{Type: tea.KeyEnter}))
+	if !got.isPlaying || got.view != viewBrowse {
+		t.Fatalf("enter should play the selected result and open browse, got isPlaying=%v view=%d", got.isPlaying, got.view)
+	}
+}
+
 func TestMouseWheelMovesCursor(t *testing.T) {
 	m := Model{view: viewBrowse, stations: []domain.Station{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
 	if got := mustModel(m.Update(tea.MouseMsg{Button: tea.MouseButtonWheelDown})); got.cursor != 1 {
