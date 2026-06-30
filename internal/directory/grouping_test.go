@@ -55,8 +55,14 @@ func TestGroupRecordsCollapsesFIPFamily(t *testing.T) {
 	if got[0].Name != "FIP" {
 		t.Fatalf("display name should be 'FIP', got %q", got[0].Name)
 	}
-	if len(got[0].Variants) != 7 {
-		t.Fatalf("expected 7 variants, got %d", len(got[0].Variants))
+	// After dedupe by quality label the 7 records collapse to distinct qualities:
+	// 192k (several), HiFi (hifi.aac), and "—" (no-codec bitrate-0).
+	if len(got[0].Variants) != 3 {
+		labels := make([]string, len(got[0].Variants))
+		for i, v := range got[0].Variants {
+			labels[i] = v.Quality()
+		}
+		t.Fatalf("expected 3 distinct-quality variants, got %d: %v", len(got[0].Variants), labels)
 	}
 }
 
@@ -84,8 +90,9 @@ func TestGroupRecordsMergesQualitySuffixes(t *testing.T) {
 		t.Fatalf("expected a station named 'FIP Jazz', got %+v", got)
 	}
 	j := got[jazz.n]
-	if len(j.Variants) != 3 {
-		t.Fatalf("FIP Jazz should have 3 variants, got %d", len(j.Variants))
+	// 192k + two HiFi records → after dedupe: HiFi, 192k (2 distinct qualities).
+	if len(j.Variants) != 2 {
+		t.Fatalf("FIP Jazz should have 2 distinct-quality variants, got %d", len(j.Variants))
 	}
 	// Best-first: the HiFi variant should sort to the front.
 	if !j.Variants[0].Lossless {
