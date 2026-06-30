@@ -61,17 +61,38 @@ func fieldScore(q, field string) int {
 	}
 }
 
-// fuzzyTokenMatch reports whether q is within Damerau-Levenshtein distance 2 of
-// any whitespace-separated token in f. Gated to queries of at least 4 runes so
-// short queries — already served by the contains/subsequence tiers — don't match
-// unrelated noise. f is assumed already lower-cased.
+// fuzzyTokenMatch reports whether every whitespace-separated token in q is a
+// close match for some token in f — so multi-word typo queries like
+// "raido einz" match "Radio Eins". A query token of at least 4 runes matches a
+// field token within Damerau-Levenshtein distance 2; shorter tokens must match a
+// field token exactly (the contains/subsequence tiers already cover short
+// queries, and loose matching on them is noisy). f is assumed already
+// lower-cased; q is lower-cased by the caller.
 func fuzzyTokenMatch(q, f string) bool {
-	qr := []rune(q)
-	if len(qr) < 4 {
+	qtoks := strings.Fields(q)
+	if len(qtoks) == 0 {
 		return false
 	}
-	for _, tok := range strings.Fields(f) {
-		tr := []rune(tok)
+	ftoks := strings.Fields(f)
+	for _, qt := range qtoks {
+		if !tokenMatchesAny(qt, ftoks) {
+			return false
+		}
+	}
+	return true
+}
+
+// tokenMatchesAny reports whether query token qt closely matches any field token.
+func tokenMatchesAny(qt string, ftoks []string) bool {
+	qr := []rune(qt)
+	for _, ft := range ftoks {
+		if len(qr) < 4 {
+			if qt == ft {
+				return true
+			}
+			continue
+		}
+		tr := []rune(ft)
 		// The distance can't be <=2 if the lengths differ by more than 2.
 		if d := len(tr) - len(qr); d > 2 || d < -2 {
 			continue
