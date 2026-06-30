@@ -24,9 +24,10 @@ or rebroadcast by us. (*onda* is "wave" in Portuguese, Spanish, and Italian.)
 - **Public-domain data** — station data comes from the public-domain
   [Radio Browser](https://www.radio-browser.info) project plus a bundled CC0 list.
 
-Streaming inherently exposes your IP to the broadcaster, and searches go to Radio
-Browser mirrors — the same as any internet-radio app. `onda` tells you this on
-first run.
+Streaming inherently exposes your IP to the broadcaster, and searches — including
+the as-you-type queries sent while you search — go to Radio Browser mirrors, the
+same as any internet-radio app. `onda` debounces those queries (one per typing
+pause, not per keystroke) and tells you this on first run.
 
 ## Install
 
@@ -98,6 +99,7 @@ onda
 | `enter` | Play selected station |
 | `s` | Stop |
 | `+` / `-` | Volume up / down |
+| `[` / `]` | Higher / lower bitrate (when a station offers several) |
 | `f` | Toggle favorite on selected station |
 | `F` | Show favorites |
 | `p` | Popular (top-voted worldwide) |
@@ -109,9 +111,18 @@ onda
 | `esc` | Back to browse |
 | `q` | Quit |
 
-**Search** — type a query, `enter` to search, `esc` to cancel. Matches **name,
-country, and tags** (queried in parallel) and ranks results best-match-first with
-light fuzzy/typo tolerance.
+**Mouse** — the scroll wheel moves the selection, a click selects a station, and
+clicking the selected station again plays it. Hovering marks the row under the
+cursor. (Keyboard remains fully supported; the mouse is optional.)
+
+**Search** — results appear **as you type** — no need to press enter. The query
+is sent shortly after you pause typing (debounced). Use `↑`/`↓` to pick a result
+and `enter` to play it; `esc` cancels. Matches **name, country, and tags**
+(queried in parallel) and ranks results best-match-first with light fuzzy/typo
+tolerance.
+
+While a stream connects, the now-playing panel shows **`connecting…`**, then the
+song title once audio starts — or a clear message if the stream can't be reached.
 
 **Add a station** — `tab` (or `↑`/`↓`) to move between *name*, *URL*, and
 *bitrate* (optional); `enter` to save; `esc` to cancel. Custom stations are saved
