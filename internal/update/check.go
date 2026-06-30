@@ -50,7 +50,9 @@ func Check(ctx context.Context, current, cacheDir string) (Status, error) {
 		} else if !ok {
 			return st, nil // first run, network failed: silent
 		}
-		// else: keep stale cache rather than nothing
+		// else: refetch failed but we have a (stale) cache — keep it rather than
+		// nothing. Its Latest/AssetURL may trail the true latest release; the
+		// banner still advertises a real, checksum-verifiable upgrade.
 	}
 
 	st.Latest = c.LatestVersion

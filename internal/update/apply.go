@@ -33,6 +33,8 @@ func Apply(ctx context.Context, st Status) error {
 	if err := verifyChecksum(archive, assetName, string(sums)); err != nil {
 		return err
 	}
+	// The archive is now verified as a sealed unit; the binary extracted from it
+	// below inherits that trust (no separate per-file checksum is published).
 	// TODO(signing): verify minisign/cosign signature here before trusting the archive.
 
 	binName := "onda"
@@ -51,6 +53,7 @@ func download(ctx context.Context, url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", "onda")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err

@@ -19,6 +19,13 @@ func TestSelectAsset(t *testing.T) {
 	if got := selectAsset(assets, "linux", "arm64"); got != "" {
 		t.Errorf("unsupported target should be empty, got %q", got)
 	}
+	// 32-bit arm must NOT false-match the arm64 archive (arm ⊂ arm64).
+	if got := selectAsset(assets, "linux", "arm"); got != "" {
+		t.Errorf("32-bit arm should not match arm64 asset, got %q", got)
+	}
+	if got := selectAsset(assets, "darwin", "arm"); got != "" {
+		t.Errorf("darwin/arm should not match darwin/arm64, got %q", got)
+	}
 	if got := checksumsURL(assets); got != "u-sums" {
 		t.Errorf("checksumsURL -> %q", got)
 	}
