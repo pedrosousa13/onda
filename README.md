@@ -161,7 +161,7 @@ Files:
 
 - `config.toml` — `quality` (highest|balanced|lowest), `tracking`
   (never|opt-in|opt-out), `history_enabled`, `theme`, `update_check`
-  (daily update check; `true` by default)
+  (daily update check; `true` by default), `volume` (0–100, restored on launch)
 - `favorites.json`, `custom.json` — your favorites and added stations
 
 Cached Radio Browser results live under your OS cache directory

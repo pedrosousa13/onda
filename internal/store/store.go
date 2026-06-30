@@ -177,3 +177,12 @@ func (s *Store) SaveTheme(theme string) error {
 	c.Theme = theme
 	return s.SaveConfig(c)
 }
+
+func (s *Store) SaveVolume(v int) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.Volume = v
+	return s.SaveConfig(c)
+}
