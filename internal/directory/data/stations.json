@@ -1,0 +1,92 @@
+[
+  {
+    "name": "BBC World Service",
+    "country": "GB",
+    "tags": ["news", "world", "english"],
+    "homepage": "https://www.bbc.co.uk/worldservice",
+    "url": "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "NPR News",
+    "country": "US",
+    "tags": ["news", "public", "english"],
+    "homepage": "https://www.npr.org",
+    "url": "https://npr-ice.streamguys1.com/live.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "NPR News",
+    "country": "US",
+    "tags": ["news", "public", "english"],
+    "homepage": "https://www.npr.org",
+    "url": "https://npr-ice.streamguys1.com/live64.mp3",
+    "codec": "MP3",
+    "bitrate": 64
+  },
+  {
+    "name": "KEXP 90.3",
+    "country": "US",
+    "tags": ["indie", "alternative", "music"],
+    "homepage": "https://www.kexp.org",
+    "url": "https://kexp-mp3-128.streamguys1.com/kexp128.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "KEXP 90.3",
+    "country": "US",
+    "tags": ["indie", "alternative", "music"],
+    "homepage": "https://www.kexp.org",
+    "url": "https://kexp-mp3-64.streamguys1.com/kexp64.mp3",
+    "codec": "MP3",
+    "bitrate": 64
+  },
+  {
+    "name": "Radio France Internationale",
+    "country": "FR",
+    "tags": ["news", "world", "french"],
+    "homepage": "https://www.rfi.fr",
+    "url": "https://icecast.radiofrance.fr/rfimonde-midfi.mp3",
+    "codec": "MP3",
+    "bitrate": 96
+  },
+  {
+    "name": "Deutschlandfunk",
+    "country": "DE",
+    "tags": ["news", "public", "german"],
+    "homepage": "https://www.deutschlandfunk.de",
+    "url": "https://st01.sslstream.dlf.de/dlf/01/128/mp3/stream.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Radio New Zealand National",
+    "country": "NZ",
+    "tags": ["news", "public", "english"],
+    "homepage": "https://www.rnz.co.nz",
+    "url": "https://radionz-ice.streamguys1.com/national.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "CBC Radio One",
+    "country": "CA",
+    "tags": ["news", "public", "english"],
+    "homepage": "https://www.cbc.ca/radio",
+    "url": "https://cbcr1-tor.akacast.akamaistream.net/7/632/451661/v1/rc.akacast.akamaistream.net/cbcr1_tor.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "ABC Radio National",
+    "country": "AU",
+    "tags": ["news", "public", "english"],
+    "homepage": "https://www.abc.net.au/radionational",
+    "url": "https://live-radio01.mediahubaustralia.com/RNW/mp3/",
+    "codec": "MP3",
+    "bitrate": 128
+  }
+]
