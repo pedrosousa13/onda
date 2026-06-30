@@ -94,8 +94,26 @@ func GroupRecords(recs []record) []domain.Station {
 	}
 	for i := range out {
 		sortVariants(out[i].Variants)
+		out[i].Variants = dedupeVariants(out[i].Variants)
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].Name < out[b].Name })
+	return out
+}
+
+// dedupeVariants keeps one variant per distinct quality label (e.g. collapses
+// eight identical 192k mirror entries into a single "192k" choice). Assumes the
+// slice is already sorted best-first, so the kept instance is the best one.
+func dedupeVariants(vs []domain.StreamVariant) []domain.StreamVariant {
+	seen := map[string]bool{}
+	out := vs[:0]
+	for _, v := range vs {
+		q := v.Quality()
+		if seen[q] {
+			continue
+		}
+		seen[q] = true
+		out = append(out, v)
+	}
 	return out
 }
 

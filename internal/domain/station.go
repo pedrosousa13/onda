@@ -23,8 +23,8 @@ func (v StreamVariant) Quality() string {
 	if v.Bitrate > 0 {
 		return strconv.Itoa(v.Bitrate) + "k"
 	}
-	if v.Codec != "" {
-		return strings.ToUpper(v.Codec)
+	if c := strings.TrimSpace(v.Codec); c != "" && !strings.EqualFold(c, "unknown") {
+		return strings.ToUpper(c)
 	}
 	return "—"
 }
