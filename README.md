@@ -132,8 +132,10 @@ locally and appear alongside everything else.
 
 **Settings** — `1` cycles audio quality (highest / balanced / lowest), `2` cycles
 popularity tracking (never / opt-in / opt-out), `3` toggles play history, `4` cycles
-the **theme**, `5` toggles the daily update check; `esc` to go back. Changes are
-saved immediately.
+the **theme**, `5` toggles the daily update check, `6` toggles **live search**
+(search as you type; off → enter-to-search), `7` toggles **loudness
+normalization** (evens out volume jumps between stations; off by default, applies
+live); `esc` to go back. Changes are saved immediately.
 
 When a station offers multiple bitrates, `onda` auto-picks per your quality
 setting (default: highest).
@@ -165,7 +167,7 @@ Files:
   (never|opt-in|opt-out), `history_enabled`, `theme`, `update_check`
   (daily update check; `true` by default), `live_search` (search as you type;
   `true` by default — set `false` for enter-to-search), `volume` (0–100,
-  restored on launch)
+  restored on launch), `normalize` (loudness normalization; `false` by default)
 - `favorites.json`, `custom.json` — your favorites and added stations
 
 Everything onda persists lives in this one directory in plain TOML/JSON, so you

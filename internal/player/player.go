@@ -11,6 +11,14 @@ import (
 
 const defaultDialTimeout = 3 * time.Second
 
+// normalizeFilter is mpv's dynaudnorm audio filter tuned for live streams.
+// dynaudnorm fills its full Gaussian window (gausssize frames of framelen ms)
+// as look-ahead before it emits any audio, so the defaults (f=500, g=31 ≈ 15.5s)
+// force ~15s of buffering before playback starts and keep the demuxer cache
+// under constant pressure. A 1.1s window (f=100, g=11) cuts startup latency by
+// >90% while keeping gain changes gradual enough to avoid pumping.
+const normalizeFilter = "dynaudnorm=f=100:g=11"
+
 // Event is emitted as playback state changes.
 type Event struct {
 	Kind  string // "title" | "playing" | "idle" | "error"
@@ -19,7 +27,8 @@ type Event struct {
 }
 
 type Options struct {
-	Binary string // defaults to "mpv"
+	Binary    string // defaults to "mpv"
+	Normalize bool   // start with loudness normalization (dynaudnorm) enabled
 }
 
 type Player struct {
@@ -43,10 +52,11 @@ func New(opts Options) (*Player, error) {
 	// ipcAddress() is platform-specific (Unix socket path or Windows pipe name).
 	addr := ipcAddress()
 	cleanupIPC(addr) // remove any stale socket file (no-op on Windows)
-	cmd := exec.Command(bin,
-		"--idle=yes", "--no-video", "--no-terminal",
-		"--input-ipc-server="+addr,
-	)
+	args := []string{"--idle=yes", "--no-video", "--no-terminal", "--input-ipc-server=" + addr}
+	if opts.Normalize {
+		args = append(args, "--af="+normalizeFilter)
+	}
+	cmd := exec.Command(bin, args...)
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
@@ -71,6 +81,15 @@ func (p *Player) Stop() error           { return p.send("stop") }
 func (p *Player) Pause() error          { return p.send("set_property", "pause", true) }
 func (p *Player) Resume() error         { return p.send("set_property", "pause", false) }
 func (p *Player) Volume(pct int) error  { return p.send("set_property", "volume", pct) }
+
+// SetNormalize toggles loudness normalization live by setting mpv's audio-filter
+// chain to dynaudnorm (on) or clearing it (off).
+func (p *Player) SetNormalize(on bool) error {
+	if on {
+		return p.send("set_property", "af", normalizeFilter)
+	}
+	return p.send("set_property", "af", "")
+}
 
 func (p *Player) observe() error {
 	if err := p.send("observe_property", 1, "media-title"); err != nil {

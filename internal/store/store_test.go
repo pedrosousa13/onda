@@ -18,8 +18,25 @@ func TestConfigDefaults(t *testing.T) {
 	if c.HistoryEnabled {
 		t.Fatal("history must default to disabled")
 	}
+	if c.Normalize {
+		t.Fatal("loudness normalization must default to disabled")
+	}
 	if c.Volume != 100 {
 		t.Fatalf("default volume should be 100, got %d", c.Volume)
+	}
+}
+
+func TestNormalizeRoundTrip(t *testing.T) {
+	s := &Store{dir: t.TempDir()}
+	if err := s.SaveNormalize(true); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Normalize {
+		t.Fatal("normalize did not round-trip as true")
 	}
 }
 

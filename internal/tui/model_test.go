@@ -11,11 +11,15 @@ import (
 	"github.com/pedrosousa13/onda/internal/update"
 )
 
-type fakePlayer struct{ played string }
+type fakePlayer struct {
+	played    string
+	normalize bool
+}
 
-func (f *fakePlayer) Play(url string) error { f.played = url; return nil }
-func (f *fakePlayer) Stop() error           { return nil }
-func (f *fakePlayer) Volume(int) error      { return nil }
+func (f *fakePlayer) Play(url string) error      { f.played = url; return nil }
+func (f *fakePlayer) Stop() error                { return nil }
+func (f *fakePlayer) Volume(int) error           { return nil }
+func (f *fakePlayer) SetNormalize(on bool) error { f.normalize = on; return nil }
 
 var errSample = errors.New("boom")
 
@@ -37,10 +41,11 @@ func TestUpdateErrMsgSetsStatus(t *testing.T) {
 }
 
 type fakeStore struct {
-	adds, removes int
-	isFav         bool
-	custom        []domain.Station
-	savedVolume   int
+	adds, removes  int
+	isFav          bool
+	custom         []domain.Station
+	savedVolume    int
+	savedNormalize bool
 }
 
 func (f *fakeStore) Favorites() ([]domain.Station, error)    { return nil, nil }
@@ -55,6 +60,7 @@ func (f *fakeStore) SaveTheme(string) error                  { return nil }
 func (f *fakeStore) SaveUpdateCheck(bool) error              { return nil }
 func (f *fakeStore) SaveLiveSearch(bool) error               { return nil }
 func (f *fakeStore) SaveVolume(v int) error                  { f.savedVolume = v; return nil }
+func (f *fakeStore) SaveNormalize(v bool) error              { f.savedNormalize = v; return nil }
 
 func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 	fs := &fakeStore{}
@@ -69,19 +75,30 @@ func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 }
 
 func TestNewStartsOnHome(t *testing.T) {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, "1.0.0", t.TempDir())
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
 	if m.view != viewHome {
 		t.Fatalf("New should start on Home, got view %d", m.view)
 	}
 }
 
+func TestSettingsToggleNormalize(t *testing.T) {
+	fp := &fakePlayer{}
+	fs := &fakeStore{}
+	m := Model{view: viewSettings, player: fp, store: fs}
+	got := mustModel(m.updateSettings(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("7")}))
+	if !got.normalize || !fp.normalize || !fs.savedNormalize {
+		t.Fatalf("toggling 7 should enable normalize everywhere, got model=%v player=%v store=%v",
+			got.normalize, fp.normalize, fs.savedNormalize)
+	}
+}
+
 func TestNewRestoresVolume(t *testing.T) {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 42, "1.0.0", t.TempDir())
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 42, false, "1.0.0", t.TempDir())
 	if m.volume != 42 {
 		t.Fatalf("New should restore the saved volume, got %d", m.volume)
 	}
 	// Out-of-range values from a hand-edited config are clamped.
-	m = New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 150, "1.0.0", t.TempDir())
+	m = New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 150, false, "1.0.0", t.TempDir())
 	if m.volume != 100 {
 		t.Fatalf("New should clamp volume to 100, got %d", m.volume)
 	}
