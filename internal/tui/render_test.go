@@ -14,7 +14,7 @@ func sampleModel() Model {
 	m.stations = []domain.Station{
 		{Name: "KEXP", Country: "United States", Tags: []string{"indie", "seattle"}, Variants: []domain.StreamVariant{{Bitrate: 128}}},
 		{Name: "BBC World Service", Country: "United Kingdom", Tags: []string{"news"}, Variants: []domain.StreamVariant{{Bitrate: 96}}},
-		{Name: "FIP", Country: "France", Tags: []string{"eclectic", "jazz"}, Variants: []domain.StreamVariant{{Bitrate: 128}}},
+		{Name: "FIP", Country: "France", Tags: []string{"eclectic", "jazz"}, Variants: []domain.StreamVariant{{URL: "h", Lossless: true}, {URL: "a", Bitrate: 192}, {URL: "b", Bitrate: 128}}},
 		{Name: "NTS Radio 1", Country: "United Kingdom", Tags: []string{"electronic"}, Variants: []domain.StreamVariant{{Bitrate: 128}}},
 		{Name: "Radio Nacional de España", Country: "Spain", Variants: []domain.StreamVariant{{Bitrate: 64}}},
 		{Name: "Triple J", Country: "Australia", Tags: []string{"alternative"}, Variants: []domain.StreamVariant{{Bitrate: 128}}},

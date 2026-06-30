@@ -49,6 +49,7 @@ type Model struct {
 	status    string
 	nowTitle  string
 	playing   domain.Station
+	varIdx    int // index into playing.Variants currently streaming
 	isPlaying bool
 	quality   domain.QualityPref
 	tracking  string
@@ -165,6 +166,10 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.changeVolume(5)
 	case "-", "_":
 		return m.changeVolume(-5)
+	case "[":
+		return m.changeVariant(-1) // higher quality
+	case "]":
+		return m.changeVariant(1) // lower quality
 	case "f":
 		return m.toggleFavorite()
 	case "/":
@@ -199,15 +204,45 @@ func (m Model) playSelected() (tea.Model, tea.Cmd) {
 	}
 	st := m.stations[m.cursor]
 	if v, ok := st.SelectVariant(m.quality); ok {
-		_ = m.player.Play(v.URL)
 		m.playing = st
+		m.varIdx = indexOfVariant(st.Variants, v)
+		_ = m.player.Play(v.URL)
 		m.isPlaying = true
 		m.nowTitle = ""
-		m.status = "playing " + st.Name
+		m.status = "playing " + st.Name + " · " + v.Quality()
 	} else {
 		m.status = "no playable stream for " + st.Name
 	}
 	return m, nil
+}
+
+// changeVariant switches the playing station to another available bitrate.
+// delta -1 selects higher quality (variants are sorted best-first), +1 lower.
+func (m Model) changeVariant(delta int) (tea.Model, tea.Cmd) {
+	if !m.isPlaying || len(m.playing.Variants) < 2 {
+		m.status = "only one quality available"
+		return m, nil
+	}
+	m.varIdx += delta
+	if m.varIdx < 0 {
+		m.varIdx = 0
+	}
+	if m.varIdx > len(m.playing.Variants)-1 {
+		m.varIdx = len(m.playing.Variants) - 1
+	}
+	v := m.playing.Variants[m.varIdx]
+	_ = m.player.Play(v.URL)
+	m.status = "quality " + v.Quality()
+	return m, nil
+}
+
+func indexOfVariant(vs []domain.StreamVariant, target domain.StreamVariant) int {
+	for i, v := range vs {
+		if v.URL == target.URL {
+			return i
+		}
+	}
+	return 0
 }
 
 func (m Model) changeVolume(delta int) (tea.Model, tea.Cmd) {

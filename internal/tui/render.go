@@ -85,8 +85,10 @@ func (m Model) renderRow(w, idx int, s domain.Station) string {
 	sel := idx == m.cursor
 
 	meta := s.Country
-	if v, ok := s.SelectVariant(m.quality); ok && v.Bitrate > 0 {
-		meta += " · " + strconv.Itoa(v.Bitrate) + "k"
+	if v, ok := s.SelectVariant(m.quality); ok {
+		if q := v.Quality(); q != "—" {
+			meta += " · " + q
+		}
 	}
 	fav := m.favKeys[favKey(s)]
 	starPlain := ""
@@ -142,17 +144,40 @@ func (m Model) nowPanel() string {
 	}
 
 	vol := m.volumeBar()
-	tagsW := inner - lipgloss.Width(vol) - 1
-	leftThird := m.st.Meta.Render(truncate(tags, max(0, tagsW)))
-	gap := inner - lipgloss.Width(leftThird) - lipgloss.Width(vol)
+	// Left of the volume bar: the bitrate chooser when there's a choice, else tags.
+	left := m.st.Meta.Render(truncate(tags, max(0, inner-lipgloss.Width(vol)-1)))
+	if m.isPlaying && len(m.playing.Variants) > 1 {
+		left = m.qualityChips(inner - lipgloss.Width(vol) - 1)
+	}
+	gap := inner - lipgloss.Width(left) - lipgloss.Width(vol)
 	if gap < 1 {
 		gap = 1
 	}
-	third := leftThird + strings.Repeat(" ", gap) + vol
+	third := left + strings.Repeat(" ", gap) + vol
 
 	content := title + "\n" + sub + "\n" + third
 	// Panel.Width is the content box incl. padding(0,1); total = width-2+border(2) = width.
 	return m.st.Panel.Width(m.width - 2).Render(content)
+}
+
+// qualityChips renders the playing station's available bitrates, the active one
+// highlighted, prefixed with the [ ] hint. Truncates to maxW columns.
+func (m Model) qualityChips(maxW int) string {
+	out := m.st.Help.Render("[ ] ")
+	for i, v := range m.playing.Variants {
+		chip := v.Quality()
+		if i == m.varIdx {
+			chip = m.st.Crumb.Render(chip)
+		} else {
+			chip = m.st.Meta.Render(chip)
+		}
+		next := out + chip + " "
+		if lipgloss.Width(next) > maxW {
+			break
+		}
+		out = next
+	}
+	return strings.TrimRight(out, " ")
 }
 
 func (m Model) volumeBar() string {
@@ -169,8 +194,8 @@ func (m Model) volumeBar() string {
 func (m Model) footer() string {
 	pairs := [][2]string{
 		{"↑↓", "move"}, {"⏎", "play"}, {"s", "stop"}, {"+/-", "vol"},
-		{"f", "★"}, {"F", "favs"}, {"/", "search"}, {"a", "add"},
-		{",", "settings"}, {"q", "quit"},
+		{"[ ]", "quality"}, {"f", "★"}, {"F", "favs"}, {"/", "search"},
+		{"a", "add"}, {",", "settings"}, {"q", "quit"},
 	}
 	sep := m.st.Help.Render("  ")
 	out := ""
