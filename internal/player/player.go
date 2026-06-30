@@ -13,7 +13,7 @@ const defaultDialTimeout = 3 * time.Second
 
 // Event is emitted as playback state changes.
 type Event struct {
-	Kind  string // "title" | "playing" | "idle" | "ended" | "error"
+	Kind  string // "title" | "playing" | "buffering" | "idle" | "ended" | "error"
 	Title string // set when Kind=="title"
 	Err   error  // set when Kind=="error"
 }
@@ -76,7 +76,10 @@ func (p *Player) observe() error {
 	if err := p.send("observe_property", 1, "media-title"); err != nil {
 		return err
 	}
-	return p.send("observe_property", 2, "core-idle")
+	if err := p.send("observe_property", 2, "core-idle"); err != nil {
+		return err
+	}
+	return p.send("observe_property", 3, "paused-for-cache")
 }
 
 func (p *Player) send(args ...any) error {
@@ -108,6 +111,12 @@ func (p *Player) readLoop() {
 				p.emit(Event{Kind: "idle"})
 			} else {
 				p.emit(Event{Kind: "playing"})
+			}
+		case f.Event == "property-change" && f.Name == "paused-for-cache":
+			// True when playback stalls waiting for the network cache to refill
+			// mid-stream. Resume is signalled by core-idle going false ("playing").
+			if stalled, ok := f.Data.(bool); ok && stalled {
+				p.emit(Event{Kind: "buffering"})
 			}
 		case f.Event == "end-file":
 			if f.Reason == "error" {

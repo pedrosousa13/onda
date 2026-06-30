@@ -32,6 +32,7 @@ const (
 	phasePlaying
 	phaseFailed
 	phaseReconnecting
+	phaseBuffering
 )
 
 // connectTimeout marks a play attempt as failed if it never starts playing.
@@ -191,17 +192,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case idleMsg:
 		// Only a real end/stop while playing returns us to idle; ignore the
-		// transient idle that precedes playback during connecting.
+		// transient idle that precedes playback during connecting, and the one
+		// that accompanies a mid-stream buffer (handled as phaseBuffering).
 		if m.phase == phasePlaying {
 			m.phase = phaseIdle
 			m.isPlaying = false
+		}
+		return m, nil
+	case bufferingMsg:
+		// Playback stalled waiting for the cache to refill. Show it as buffering
+		// rather than a stop; core-idle going false ("playing") clears it.
+		if m.phase == phasePlaying {
+			m.phase = phaseBuffering
 		}
 		return m, nil
 	case endedMsg:
 		// The stream ended while we were playing → treat as a drop and try to
 		// reconnect. Ends that arrive in any other phase (e.g. the previous
 		// file ending when we switch stations) are not drops.
-		if m.phase == phasePlaying {
+		if m.phase == phasePlaying || m.phase == phaseBuffering {
 			if nm, cmd, ok := m.tryReconnect(); ok {
 				return nm, cmd
 			}
@@ -212,7 +221,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case playErrMsg:
 		// A failure mid-playback is a drop worth reconnecting; a failure while
 		// first connecting is reported as-is.
-		if m.phase == phasePlaying {
+		if m.phase == phasePlaying || m.phase == phaseBuffering {
 			if nm, cmd, ok := m.tryReconnect(); ok {
 				return nm, cmd
 			}

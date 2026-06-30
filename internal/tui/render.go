@@ -269,6 +269,8 @@ func (m Model) nowPanel(width int) string {
 		line2 = m.st.NowTitle.Render(truncate("connecting…", inner))
 	case m.phase == phaseReconnecting:
 		line2 = m.st.NowTitle.Render(truncate("reconnecting…", inner))
+	case m.phase == phaseBuffering:
+		line2 = m.st.NowTitle.Render(truncate("buffering…", inner))
 	case !m.isPlaying:
 		line2 = m.st.Meta.Render("select a station and press enter to play")
 	case m.nowTitle != "":
