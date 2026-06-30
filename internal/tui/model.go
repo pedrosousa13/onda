@@ -92,11 +92,12 @@ type Model struct {
 	version        string // build version, for the update check
 	updateCacheDir string // where update-cache.json lives
 
-	search   textinput.Model
-	addName  textinput.Model
-	addURL   textinput.Model
-	addBr    textinput.Model
-	addFocus int // 0=name, 1=url, 2=bitrate
+	search    textinput.Model
+	searchSeq int // live-search debounce generation
+	addName   textinput.Model
+	addURL    textinput.Model
+	addBr     textinput.Model
+	addFocus  int // 0=name, 1=url, 2=bitrate
 }
 
 func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck bool, version, updateCacheDir string) Model {
@@ -208,6 +209,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = "updated to " + m.update.Latest + " — restart onda to apply"
 		}
 		return m, nil
+	case searchDebounceMsg:
+		// Only the latest keystroke's tick, still in the search view, searches.
+		if m.view != viewSearch || msg.seq != m.searchSeq {
+			return m, nil
+		}
+		q := strings.TrimSpace(m.search.Value())
+		if len([]rune(q)) < minSearchLen {
+			m.stations = nil // clear stale preview
+			return m, nil
+		}
+		m.loading = true
+		return m, tea.Batch(searchCmd(m.dir, q), m.sp.Tick)
 	case spinner.TickMsg:
 		if !m.loading {
 			return m, nil
@@ -329,6 +342,8 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.view = viewSearch
 		m.search.SetValue("")
 		m.search.Focus()
+		m.hoverIdx = -1
+		m.stations = nil // start the live-search preview empty
 		return m, nil
 	case "F":
 		return m.showFavorites()

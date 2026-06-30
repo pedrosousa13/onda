@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pedrosousa13/onda/internal/domain"
 	"github.com/pedrosousa13/onda/internal/update"
@@ -142,6 +143,31 @@ func TestConnectTimeoutGuard(t *testing.T) {
 }
 
 func mustModel(model tea.Model, _ tea.Cmd) Model { return model.(Model) }
+
+func searchModel(query string, seq int) Model {
+	ti := textinput.New()
+	ti.SetValue(query)
+	return Model{view: viewSearch, search: ti, searchSeq: seq}
+}
+
+func TestSearchDebounceFiresLatestOnly(t *testing.T) {
+	m := searchModel("jazz", 7)
+	// A stale tick (older seq) must not trigger a search.
+	if got := mustModel(m.Update(searchDebounceMsg{seq: 3})); got.loading {
+		t.Fatal("stale debounce should not search")
+	}
+	// The latest tick with a long-enough query starts searching.
+	if got := mustModel(m.Update(searchDebounceMsg{seq: 7})); !got.loading {
+		t.Fatal("matching debounce should start searching")
+	}
+}
+
+func TestSearchDebounceMinLength(t *testing.T) {
+	m := searchModel("j", 1)
+	if got := mustModel(m.Update(searchDebounceMsg{seq: 1})); got.loading {
+		t.Fatal("query shorter than the minimum should not search")
+	}
+}
 
 func TestMouseWheelMovesCursor(t *testing.T) {
 	m := Model{view: viewBrowse, stations: []domain.Station{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
