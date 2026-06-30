@@ -83,10 +83,17 @@ func showFirstRunNoticeOnce(st *store.Store) {
 	if _, err := os.Stat(marker); err == nil {
 		return
 	}
-	fmt.Println("radio streams directly from broadcasters — they see your IP,")
-	fmt.Println("and searches go to the public Radio Browser service. radio never")
-	fmt.Println("records, rebroadcasts, or reports what you listen to (by default).")
-	fmt.Println("Press Enter to continue.")
-	fmt.Scanln()
+	// Mark it shown up front so the notice appears exactly once — even if the
+	// user quits at the prompt rather than pressing Enter.
 	_ = os.WriteFile(marker, []byte("1"), 0o644)
+	fmt.Println("A quick note on privacy:")
+	fmt.Println()
+	fmt.Println("radio connects you directly to broadcasters — like opening a stream in a")
+	fmt.Println("browser or VLC, they (and, for non-HTTPS streams, your network) can see")
+	fmt.Println("what you're playing. Searches go to the public Radio Browser service.")
+	fmt.Println("radio itself never records, rebroadcasts, or reports your listening —")
+	fmt.Println("popularity tracking is off by default (change it in settings).")
+	fmt.Println()
+	fmt.Println("Shown once. Press Enter to continue — you won't see this again.")
+	fmt.Scanln()
 }
