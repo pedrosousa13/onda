@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/pedrosousa13/onda/internal/domain"
 	"github.com/pedrosousa13/onda/internal/update"
 )
@@ -71,6 +72,61 @@ func TestRenderGallery(t *testing.T) {
 	f := m
 	f.view = viewFavorites
 	frame("FAVORITES", f)
+}
+
+// TestGutterPadding verifies every view's non-empty lines sit inside the left
+// gutter, and that content is laid out at contentWidth (leaving a right gutter).
+func TestGutterPadding(t *testing.T) {
+	pad := strings.Repeat(" ", gutter)
+	for _, v := range []view{viewBrowse, viewHome, viewSettings, viewSearch, viewAdd} {
+		m := sampleModel()
+		m.view = v
+		for _, ln := range strings.Split(m.View(), "\n") {
+			if ln == "" {
+				continue
+			}
+			if !strings.HasPrefix(ln, pad) {
+				t.Errorf("view %d: line not gutter-indented: %q", v, ln)
+			}
+		}
+	}
+}
+
+// TestPanelWidthWithinGutter checks the now-panel renders at the content width,
+// so the indented output never exceeds the terminal width.
+func TestPanelWidthWithinGutter(t *testing.T) {
+	m := sampleModel()
+	panel := m.nowPanel(m.contentWidth())
+	for _, ln := range strings.Split(panel, "\n") {
+		if w := lipgloss.Width(ln); w > m.contentWidth() {
+			t.Errorf("panel line width %d exceeds contentWidth %d: %q", w, m.contentWidth(), ln)
+		}
+	}
+	if got := m.contentWidth(); got != m.width-2*gutter {
+		t.Errorf("contentWidth = %d, want %d", got, m.width-2*gutter)
+	}
+}
+
+// TestHomeCenteredHeroAndHint verifies the Home hero is centered (indented
+// beyond the gutter on a wide terminal) and the search hint is present.
+func TestHomeCenteredHeroAndHint(t *testing.T) {
+	m := sampleModel()
+	m.view = viewHome
+	out := m.View()
+	if !strings.Contains(out, "to search") {
+		t.Error("home view missing search hint")
+	}
+	var centered bool
+	for _, ln := range strings.Split(out, "\n") {
+		if strings.Contains(ln, "╭") {
+			lead := len(ln) - len(strings.TrimLeft(ln, " "))
+			centered = lead > gutter
+			break
+		}
+	}
+	if !centered {
+		t.Error("hero panel not centered beyond the gutter")
+	}
 }
 
 func TestUpdateBannerText(t *testing.T) {

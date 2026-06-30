@@ -3,6 +3,7 @@ package tui
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -21,6 +22,19 @@ const (
 	viewAdd
 	viewSettings
 )
+
+// playbackPhase tracks what the now-playing panel should honestly report.
+type playbackPhase int
+
+const (
+	phaseIdle playbackPhase = iota
+	phaseConnecting
+	phasePlaying
+	phaseFailed
+)
+
+// connectTimeout marks a play attempt as failed if it never starts playing.
+const connectTimeout = 12 * time.Second
 
 type Player interface {
 	Play(url string) error
@@ -49,11 +63,15 @@ type Model struct {
 	view      view
 	stations  []domain.Station
 	cursor    int
+	hoverIdx  int // station row under the mouse, -1 if none
 	status    string
 	nowTitle  string
 	playing   domain.Station
 	varIdx    int // index into playing.Variants currently streaming
 	isPlaying bool
+	phase       playbackPhase
+	playErr     string // message shown when phase == phaseFailed
+	playAttempt int    // monotonic; guards stale connect timeouts
 	quality   domain.QualityPref
 	tracking  string
 	history   bool
@@ -99,7 +117,8 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 		quality: quality, tracking: tracking, history: history,
 		volume: 100, themeName: t.Name, st: newStyles(t),
 		width: 80, height: 24, favKeys: map[string]bool{},
-		sp: sp, view: viewHome, crumb: "home",
+		hoverIdx: -1,
+		sp:       sp, view: viewHome, crumb: "home",
 		updateCheck: updateCheck, version: version, updateCacheDir: updateCacheDir,
 		search: search, addName: name, addURL: url, addBr: br,
 	}
@@ -155,6 +174,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case titleMsg:
 		m.nowTitle = sanitizeTitle(msg.title)
 		return m, nil
+	case playingMsg:
+		// core-idle just went false → audio is actually flowing.
+		m.phase = phasePlaying
+		m.isPlaying = true
+		return m, nil
+	case idleMsg:
+		// Only a real end/stop while playing returns us to idle; ignore the
+		// transient idle that precedes playback during connecting.
+		if m.phase == phasePlaying {
+			m.phase = phaseIdle
+			m.isPlaying = false
+		}
+		return m, nil
+	case playErrMsg:
+		m.phase = phaseFailed
+		m.playErr = "couldn't connect — the stream may be offline"
+		return m, nil
+	case connectTimeoutMsg:
+		if msg.attempt == m.playAttempt && m.phase == phaseConnecting {
+			m.phase = phaseFailed
+			m.playErr = "still connecting — the stream may be slow or offline"
+		}
+		return m, nil
 	case updateMsg:
 		m.update = msg.status
 		return m, nil
@@ -173,10 +215,65 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.sp, cmd = m.sp.Update(msg)
 		return m, cmd
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	}
 	return m, nil
+}
+
+// handleMouse maps wheel/click/hover to list actions. Input views (search,
+// add, settings) keep their keyboard focus and ignore the mouse.
+func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	switch m.view {
+	case viewSearch, viewAdd, viewSettings:
+		return m, nil
+	}
+	switch msg.Button {
+	case tea.MouseButtonWheelUp:
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	case tea.MouseButtonWheelDown:
+		if m.cursor < len(m.stations)-1 {
+			m.cursor++
+		}
+	case tea.MouseButtonLeft:
+		if msg.Action == tea.MouseActionPress {
+			if idx := m.stationAtY(msg.Y); idx >= 0 {
+				if idx == m.cursor {
+					return m.playSelected() // click the selected row again → play
+				}
+				m.cursor = idx
+			}
+		}
+	default:
+		if msg.Action == tea.MouseActionMotion {
+			m.hoverIdx = m.stationAtY(msg.Y)
+		}
+	}
+	return m, nil
+}
+
+// stationAtY maps a screen row to a visible station index, or -1 if the row
+// isn't over a station. Geometry mirrors viewList/viewHome layout.
+func (m Model) stationAtY(y int) int {
+	rowStartY := 3 // header(2) + blank(1)
+	listRows := m.height - chromeHeight
+	if m.view == viewHome {
+		rowStartY = 11 // header(2)+blank(1)+panel(5)+hint(1)+blank(1)+label(1)
+		listRows = m.height - 13
+	}
+	if listRows < 3 {
+		listRows = 3
+	}
+	start, end := windowBounds(m.cursor, len(m.stations), listRows)
+	idx := start + (y - rowStartY)
+	if y >= rowStartY && idx >= start && idx < end && idx < len(m.stations) {
+		return idx
+	}
+	return -1
 }
 
 func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -207,6 +304,8 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "s":
 		_ = m.player.Stop()
 		m.isPlaying = false
+		m.phase = phaseIdle
+		m.playErr = ""
 		m.status = "stopped"
 	case "+", "=":
 		return m.changeVolume(5)
@@ -281,10 +380,22 @@ func (m Model) playSelected() (tea.Model, tea.Cmd) {
 		m.isPlaying = true
 		m.nowTitle = ""
 		m.status = "playing " + st.Name + " · " + v.Quality()
-	} else {
-		m.status = "no playable stream for " + st.Name
+		return m.startConnecting()
 	}
+	m.status = "no playable stream for " + st.Name
 	return m, nil
+}
+
+// startConnecting enters the connecting phase and schedules a stale-guarded
+// timeout so a stream that never starts is reported as failed, not stuck.
+func (m Model) startConnecting() (tea.Model, tea.Cmd) {
+	m.phase = phaseConnecting
+	m.playErr = ""
+	m.playAttempt++
+	attempt := m.playAttempt
+	return m, tea.Tick(connectTimeout, func(time.Time) tea.Msg {
+		return connectTimeoutMsg{attempt: attempt}
+	})
 }
 
 // changeVariant switches the playing station to another available bitrate.
@@ -304,7 +415,7 @@ func (m Model) changeVariant(delta int) (tea.Model, tea.Cmd) {
 	v := m.playing.Variants[m.varIdx]
 	_ = m.player.Play(v.URL)
 	m.status = "quality " + v.Quality()
-	return m, nil
+	return m.startConnecting()
 }
 
 func indexOfVariant(vs []domain.StreamVariant, target domain.StreamVariant) int {
@@ -451,16 +562,18 @@ func (m Model) submitAdd() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	var s string
 	switch m.view {
 	case viewHome:
-		return m.viewHome()
+		s = m.viewHome()
 	case viewSearch:
-		return m.viewSearch()
+		s = m.viewSearch()
 	case viewAdd:
-		return m.viewAdd()
+		s = m.viewAdd()
 	case viewSettings:
-		return m.viewSettings()
+		s = m.viewSettings()
 	default:
-		return m.viewList()
+		s = m.viewList()
 	}
+	return indentLines(s, gutter)
 }
