@@ -1349,6 +1349,18 @@
     "bitrate": 128
   },
   {
+    "name": "RCS - Rádio Clube de Sintra",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiorcs.pt",
+    "url": "http://centova.radios.pt:8445/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
     "name": "Rádio Gilão FM",
     "country": "PT",
     "tags": [
