@@ -25,11 +25,16 @@ or rebroadcast by us. (*onda* is "wave" in Portuguese, Spanish, and Italian.)
   [Radio Browser](https://www.radio-browser.info) project plus a bundled CC0 list.
 
 Streaming inherently exposes your IP to the broadcaster, the same as any
-internet-radio app. Search, though, runs **locally**: `onda` keeps a copy of the
-public station directory on your machine and searches that — your queries are
-**not** sent anywhere as you type. The network is used only to **refresh** that
-local list (manually with `R`, or automatically about once a week). The list
-itself comes from the public-domain Radio Browser project.
+internet-radio app. Search is **opt-in local**. By default `onda` searches
+Radio Browser over the network as you type (debounced — one query per typing
+pause), exactly like other clients. If you opt in — from the first-run prompt,
+the hint shown after a search finds nothing, or Settings — `onda` downloads the
+full public station directory once (~30 MB, in the background with a live
+progress readout) and from then on searches that **local** copy: it becomes
+typo-tolerant (so `raido eins` still finds `Radio Eins`) and your queries are
+**not** sent anywhere as you type. The local list refreshes about once a week,
+or on demand with `R`. Turn it off anytime in Settings; the cached list is a
+plain file you can delete.
 
 ## Install
 
