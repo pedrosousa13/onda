@@ -2,7 +2,11 @@
   {
     "name": "BBC World Service",
     "country": "GB",
-    "tags": ["news", "world", "english"],
+    "tags": [
+      "news",
+      "world",
+      "english"
+    ],
     "homepage": "https://www.bbc.co.uk/worldservice",
     "url": "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service",
     "codec": "MP3",
@@ -11,7 +15,11 @@
   {
     "name": "NPR News",
     "country": "US",
-    "tags": ["news", "public", "english"],
+    "tags": [
+      "news",
+      "public",
+      "english"
+    ],
     "homepage": "https://www.npr.org",
     "url": "https://npr-ice.streamguys1.com/live.mp3",
     "codec": "MP3",
@@ -20,7 +28,11 @@
   {
     "name": "NPR News",
     "country": "US",
-    "tags": ["news", "public", "english"],
+    "tags": [
+      "news",
+      "public",
+      "english"
+    ],
     "homepage": "https://www.npr.org",
     "url": "https://npr-ice.streamguys1.com/live64.mp3",
     "codec": "MP3",
@@ -29,7 +41,11 @@
   {
     "name": "KEXP 90.3",
     "country": "US",
-    "tags": ["indie", "alternative", "music"],
+    "tags": [
+      "indie",
+      "alternative",
+      "music"
+    ],
     "homepage": "https://www.kexp.org",
     "url": "https://kexp-mp3-128.streamguys1.com/kexp128.mp3",
     "codec": "MP3",
@@ -38,7 +54,11 @@
   {
     "name": "KEXP 90.3",
     "country": "US",
-    "tags": ["indie", "alternative", "music"],
+    "tags": [
+      "indie",
+      "alternative",
+      "music"
+    ],
     "homepage": "https://www.kexp.org",
     "url": "https://kexp-mp3-64.streamguys1.com/kexp64.mp3",
     "codec": "MP3",
@@ -47,7 +67,11 @@
   {
     "name": "Radio France Internationale",
     "country": "FR",
-    "tags": ["news", "world", "french"],
+    "tags": [
+      "news",
+      "world",
+      "french"
+    ],
     "homepage": "https://www.rfi.fr",
     "url": "https://icecast.radiofrance.fr/rfimonde-midfi.mp3",
     "codec": "MP3",
@@ -56,7 +80,11 @@
   {
     "name": "Deutschlandfunk",
     "country": "DE",
-    "tags": ["news", "public", "german"],
+    "tags": [
+      "news",
+      "public",
+      "german"
+    ],
     "homepage": "https://www.deutschlandfunk.de",
     "url": "https://st01.sslstream.dlf.de/dlf/01/128/mp3/stream.mp3",
     "codec": "MP3",
@@ -65,7 +93,11 @@
   {
     "name": "Radio New Zealand National",
     "country": "NZ",
-    "tags": ["news", "public", "english"],
+    "tags": [
+      "news",
+      "public",
+      "english"
+    ],
     "homepage": "https://www.rnz.co.nz",
     "url": "https://radionz-ice.streamguys1.com/national.mp3",
     "codec": "MP3",
@@ -74,7 +106,11 @@
   {
     "name": "CBC Radio One",
     "country": "CA",
-    "tags": ["news", "public", "english"],
+    "tags": [
+      "news",
+      "public",
+      "english"
+    ],
     "homepage": "https://www.cbc.ca/radio",
     "url": "https://cbcr1-tor.akacast.akamaistream.net/7/632/451661/v1/rc.akacast.akamaistream.net/cbcr1_tor.mp3",
     "codec": "MP3",
@@ -83,9 +119,1757 @@
   {
     "name": "ABC Radio National",
     "country": "AU",
-    "tags": ["news", "public", "english"],
+    "tags": [
+      "news",
+      "public",
+      "english"
+    ],
     "homepage": "https://www.abc.net.au/radionational",
     "url": "https://live-radio01.mediahubaustralia.com/RNW/mp3/",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RTP Antena 1",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://antena1.rtp.pt",
+    "url": "https://radiocast.rtp.pt/antena180b.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RTP Antena 1",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://antena1.rtp.pt",
+    "url": "https://radiocast.rtp.pt/antena180a.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RTP Antena 1",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://antena1.rtp.pt",
+    "url": "https://streaming-live-app.rtp.pt/liveradio/antena180a/playlist.m3u8",
+    "codec": "AAC",
+    "bitrate": 184
+  },
+  {
+    "name": "RTP Antena 1",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://antena1.rtp.pt",
+    "url": "https://streaming-live.rtp.pt/liveradio/antena180a/playlist.m3u8",
+    "codec": "AAC",
+    "bitrate": 184
+  },
+  {
+    "name": "RTP Antena 2",
+    "country": "PT",
+    "tags": [
+      "classical",
+      "portuguese"
+    ],
+    "homepage": "https://antena2.rtp.pt",
+    "url": "https://radiocast.rtp.pt/antena280b.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RTP Antena 2",
+    "country": "PT",
+    "tags": [
+      "classical",
+      "portuguese"
+    ],
+    "homepage": "https://antena2.rtp.pt",
+    "url": "https://radiocast.rtp.pt/antena280a.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RTP Antena 2",
+    "country": "PT",
+    "tags": [
+      "classical",
+      "portuguese"
+    ],
+    "homepage": "https://antena2.rtp.pt",
+    "url": "https://streaming-live.rtp.pt/liveradio/antena280a/playlist.m3u8",
+    "codec": "AAC",
+    "bitrate": 259
+  },
+  {
+    "name": "RTP Antena 2",
+    "country": "PT",
+    "tags": [
+      "classical",
+      "portuguese"
+    ],
+    "homepage": "https://antena2.rtp.pt",
+    "url": "https://streaming-live.rtp.pt/liveradio/antena280a/playlist.m3u8?DVR",
+    "codec": "AAC",
+    "bitrate": 262
+  },
+  {
+    "name": "RTP Antena 3",
+    "country": "PT",
+    "tags": [
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://media.rtp.pt/antena3",
+    "url": "https://radiocast.rtp.pt/antena380b.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RTP Antena 3",
+    "country": "PT",
+    "tags": [
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://media.rtp.pt/antena3",
+    "url": "https://radiocast.rtp.pt/antena380a.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RTP Antena 3",
+    "country": "PT",
+    "tags": [
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://media.rtp.pt/antena3",
+    "url": "https://streaming-live-app.rtp.pt/liveradio/antena380a/playlist.m3u8",
+    "codec": "AAC",
+    "bitrate": 170
+  },
+  {
+    "name": "RTP Antena 3",
+    "country": "PT",
+    "tags": [
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://media.rtp.pt/antena3",
+    "url": "https://streaming-live.rtp.pt/liveradio/antena380a/playlist.m3u8",
+    "codec": "AAC",
+    "bitrate": 172
+  },
+  {
+    "name": "Rádio Renascença",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://rr.pt",
+    "url": "http://giss.tv:8001/rr.mp3",
+    "codec": "MP3",
+    "bitrate": 64
+  },
+  {
+    "name": "Rádio Renascença",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://rr.pt",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_RENASCENCA.mp3",
+    "codec": "MP3",
+    "bitrate": 64
+  },
+  {
+    "name": "Rádio Renascença",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://rr.pt",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_RENASCENCAAAC.aac",
+    "codec": "AAC",
+    "bitrate": 65
+  },
+  {
+    "name": "Rádio FM",
+    "country": "PT",
+    "tags": [
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://rfm.pt",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/RFM.mp3",
+    "codec": "MP3",
+    "bitrate": 64
+  },
+  {
+    "name": "Rádio FM",
+    "country": "PT",
+    "tags": [
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://rfm.pt",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/RFMAAC.aac",
+    "codec": "AAC",
+    "bitrate": 65
+  },
+  {
+    "name": "Rádio FM",
+    "country": "PT",
+    "tags": [
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://rfm.pt",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/RFM_PORTUGAL.mp3",
+    "codec": "MP3",
+    "bitrate": 96
+  },
+  {
+    "name": "Rádio Comercial",
+    "country": "PT",
+    "tags": [
+      "hits",
+      "rock",
+      "top",
+      "40",
+      "portuguese"
+    ],
+    "homepage": "https://radiocomercial.pt",
+    "url": "https://stream-hls.bauermedia.pt/comercial.aac/playlist.m3u8",
+    "codec": "AAC",
+    "bitrate": 127
+  },
+  {
+    "name": "Rádio Comercial",
+    "country": "PT",
+    "tags": [
+      "hits",
+      "rock",
+      "top",
+      "40",
+      "portuguese"
+    ],
+    "homepage": "https://radiocomercial.pt",
+    "url": "https://stream-icy.bauermedia.pt/comercial.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "TSF Rádio Notícias",
+    "country": "PT",
+    "tags": [
+      "news",
+      "talk",
+      "portuguese"
+    ],
+    "homepage": "https://www.tsf.pt",
+    "url": "https://directo.tsf.pt/tsfdirecto_32K.mp3",
+    "codec": "MP3",
+    "bitrate": 32
+  },
+  {
+    "name": "TSF Rádio Notícias",
+    "country": "PT",
+    "tags": [
+      "news",
+      "talk",
+      "portuguese"
+    ],
+    "homepage": "https://www.tsf.pt",
+    "url": "http://directo.tsf.pt:8181/tsfdirecto_32K.mp3",
+    "codec": "MP3",
+    "bitrate": 32
+  },
+  {
+    "name": "TSF Rádio Notícias",
+    "country": "PT",
+    "tags": [
+      "news",
+      "talk",
+      "portuguese"
+    ],
+    "homepage": "https://www.tsf.pt",
+    "url": "https://tsfdirecto.tsf.pt/tsfdirecto_32K.mp3",
+    "codec": "MP3",
+    "bitrate": 32
+  },
+  {
+    "name": "TSF Rádio Notícias",
+    "country": "PT",
+    "tags": [
+      "news",
+      "talk",
+      "portuguese"
+    ],
+    "homepage": "https://www.tsf.pt",
+    "url": "https://tsfdirecto.tsf.pt/tsfdirecto.aac",
+    "codec": "AAC",
+    "bitrate": 64
+  },
+  {
+    "name": "TSF Rádio Notícias",
+    "country": "PT",
+    "tags": [
+      "news",
+      "talk",
+      "portuguese"
+    ],
+    "homepage": "https://www.tsf.pt",
+    "url": "https://directo.tsf.pt/tsfdirecto.aac",
+    "codec": "AAC",
+    "bitrate": 64
+  },
+  {
+    "name": "TSF Rádio Notícias",
+    "country": "PT",
+    "tags": [
+      "news",
+      "talk",
+      "portuguese"
+    ],
+    "homepage": "https://www.tsf.pt",
+    "url": "http://directo.tsf.pt:8181/tsfdirecto.aac",
+    "codec": "AAC",
+    "bitrate": 64
+  },
+  {
+    "name": "TSF Rádio Notícias",
+    "country": "PT",
+    "tags": [
+      "news",
+      "talk",
+      "portuguese"
+    ],
+    "homepage": "https://www.tsf.pt",
+    "url": "https://directo.tsf.pt/tsfdirecto.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "TSF Rádio Notícias",
+    "country": "PT",
+    "tags": [
+      "news",
+      "talk",
+      "portuguese"
+    ],
+    "homepage": "https://www.tsf.pt",
+    "url": "http://directo.tsf.pt:8181/tsfdirecto.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "TSF Rádio Notícias",
+    "country": "PT",
+    "tags": [
+      "news",
+      "talk",
+      "portuguese"
+    ],
+    "homepage": "https://www.tsf.pt",
+    "url": "https://tsfdirecto.tsf.pt/tsfdirecto.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "M 80 Rádio",
+    "country": "PT",
+    "tags": [
+      "oldies",
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://m80.pt",
+    "url": "https://stream-icy.bauermedia.pt/m80.aac",
+    "codec": "AAC",
+    "bitrate": 128
+  },
+  {
+    "name": "M 80 Rádio",
+    "country": "PT",
+    "tags": [
+      "oldies",
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://m80.pt",
+    "url": "https://stream-icy.bauermedia.pt/m80.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RTP África",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://rdpafrica.rtp.pt",
+    "url": "https://radiocast.rtp.pt/rdpafrica80b.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RTP África",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://rdpafrica.rtp.pt",
+    "url": "https://radiocast.rtp.pt/rdpafrica80a.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RTP África",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://rdpafrica.rtp.pt",
+    "url": "https://streaming-live.rtp.pt/liveradio/rdpafrica80a/playlist.m3u8",
+    "codec": "AAC",
+    "bitrate": 178
+  },
+  {
+    "name": "Golo FM",
+    "country": "PT",
+    "tags": [
+      "talk",
+      "sports",
+      "portuguese"
+    ],
+    "homepage": "https://golo.fm",
+    "url": "https://sp0.redeaudio.com/8154/stream",
+    "codec": "MP3",
+    "bitrate": 192
+  },
+  {
+    "name": "Golo FM",
+    "country": "PT",
+    "tags": [
+      "talk",
+      "sports",
+      "portuguese"
+    ],
+    "homepage": "https://golo.fm",
+    "url": "https://sp0.redeaudio.com/8154/live",
+    "codec": "MP3",
+    "bitrate": 192
+  },
+  {
+    "name": "Mega Hits",
+    "country": "PT",
+    "tags": [
+      "hits",
+      "portuguese"
+    ],
+    "homepage": "https://megahits.fm",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/MEGA_HITS.mp3",
+    "codec": "MP3",
+    "bitrate": 64
+  },
+  {
+    "name": "Mega Hits",
+    "country": "PT",
+    "tags": [
+      "hits",
+      "portuguese"
+    ],
+    "homepage": "https://megahits.fm",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/MEGA_HITSAAC.aac",
+    "codec": "AAC",
+    "bitrate": 66
+  },
+  {
+    "name": "Cidade FM",
+    "country": "PT",
+    "tags": [
+      "hip",
+      "hop",
+      "portuguese"
+    ],
+    "homepage": "https://cidade.fm",
+    "url": "https://up-rcr.webnow.com.br/cidade.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Cidade FM",
+    "country": "PT",
+    "tags": [
+      "hip",
+      "hop",
+      "portuguese"
+    ],
+    "homepage": "https://cidade.fm",
+    "url": "https://up-continental.webnow.com.br/cidade.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Cidade FM",
+    "country": "PT",
+    "tags": [
+      "hip",
+      "hop",
+      "portuguese"
+    ],
+    "homepage": "https://cidade.fm",
+    "url": "https://51-222-26-208.webnow.com.br/cidade.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Cidade FM",
+    "country": "PT",
+    "tags": [
+      "hip",
+      "hop",
+      "portuguese"
+    ],
+    "homepage": "https://cidade.fm",
+    "url": "https://stream-hls.bauermedia.pt/cidhiphop.aac/playlist.m3u8",
+    "codec": "AAC",
+    "bitrate": 128
+  },
+  {
+    "name": "Cidade FM",
+    "country": "PT",
+    "tags": [
+      "hip",
+      "hop",
+      "portuguese"
+    ],
+    "homepage": "https://cidade.fm",
+    "url": "https://stream-icy.bauermedia.pt/cidade.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Observador 93.7",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://observador.pt/radio",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/OBSERVADORAAC.aac",
+    "codec": "AAC",
+    "bitrate": 98
+  },
+  {
+    "name": "Rádio Observador 93.7",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://observador.pt/radio",
+    "url": "http://centova.radios.pt:8455/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Observador 93.7",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://observador.pt/radio",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/OBSERVADOR.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Smooth FM",
+    "country": "PT",
+    "tags": [
+      "jazz",
+      "portuguese"
+    ],
+    "homepage": "https://smoothfm.pt",
+    "url": "https://stream-icy.bauermedia.pt/smooth.mp3",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RDS Rádio 87.6 FM",
+    "country": "PT",
+    "tags": [
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://rds.pt",
+    "url": "https://s9.yesstreaming.net:7070/stream",
+    "codec": "MP3",
+    "bitrate": 320
+  },
+  {
+    "name": "RDS Rádio 87.6 FM",
+    "country": "PT",
+    "tags": [
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://rds.pt",
+    "url": "https://s9.yesstreaming.net:9033/;",
+    "codec": "MP3",
+    "bitrate": 320
+  },
+  {
+    "name": "Rádio Amália",
+    "country": "PT",
+    "tags": [
+      "folk",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "http://centova.radios.pt:9496/stream.mp3/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Amália",
+    "country": "PT",
+    "tags": [
+      "folk",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "http://centova.radios.pt:9496/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Amália",
+    "country": "PT",
+    "tags": [
+      "folk",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "https://link.radios.pt/radioamalia",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Maria",
+    "country": "PT",
+    "tags": [
+      "catholic",
+      "radio",
+      "maria",
+      "religious",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "http://dreamsiteradiocp4.com:8034/;",
+    "codec": "MP3",
+    "bitrate": 48
+  },
+  {
+    "name": "Rádio Maria",
+    "country": "PT",
+    "tags": [
+      "catholic",
+      "radio",
+      "maria",
+      "religious",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "https://dreamsiteradiocp4.com/proxy/rmportugal2",
+    "codec": "MP3",
+    "bitrate": 48
+  },
+  {
+    "name": "Rádio Maria",
+    "country": "PT",
+    "tags": [
+      "catholic",
+      "radio",
+      "maria",
+      "religious",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "https://dreamsiteradiocp5.com/proxy/rmportugal1?mp=/stream",
+    "codec": "AAC",
+    "bitrate": 63
+  },
+  {
+    "name": "Rádio Nova Era",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radionovaera.pt",
+    "url": "http://centova.radios.pt:9478/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Top FM",
+    "country": "PT",
+    "tags": [
+      "rock",
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://topfm.pt",
+    "url": "http://bible-atchisonradio.radioca.st:8420/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Dom Bosco",
+    "country": "PT",
+    "tags": [
+      "eclectic",
+      "portuguese"
+    ],
+    "homepage": "https://www.radiodombosco.pt",
+    "url": "http://radiodbosco.myftp.biz:8000/radio",
+    "codec": "AAC",
+    "bitrate": 63
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play.radioregional.pt:8012/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play.radioregional.pt:8008/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play2.radioregional.pt/stream/5/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play2.radioregional.pt/stream/4/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play2.radioregional.pt/stream/3/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play1.radioregional.pt:8000/stream/5/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play1.radioregional.pt:8000/stream/4/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play1.radioregional.pt:8000/stream/3/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play1.radioregional.pt/stream/5/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play1.radioregional.pt/stream/3/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play4.radioregional.pt/stream/3/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play1.radioregional.pt/stream/4/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://streaming.radioregional.pt:8004/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play3.radioregional.pt/stream/3/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play.radioregional.pt:8000/stream/5/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play.radioregional.pt/stream/5/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play.radioregional.pt:8000/stream/3/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play.radioregional.pt/stream/3/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play.radioregional.pt:8000/stream/4/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play.radioregional.pt/stream/4/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play.radioregional.pt:8000/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play.radioregional.pt/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play1.radioregional.pt:8000/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://streaming.radioregional.pt:8008/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play.radioregional.pt:8004/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play3.radioregional.pt/stream/5/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play2.radioregional.pt/stream/2/;",
+    "codec": "MP3",
+    "bitrate": 256
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play1.radioregional.pt:8000/stream/2/;",
+    "codec": "MP3",
+    "bitrate": 256
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play1.radioregional.pt/stream/2/;",
+    "codec": "MP3",
+    "bitrate": 256
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play3.radioregional.pt/stream/2/;",
+    "codec": "MP3",
+    "bitrate": 256
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play.radioregional.pt:8000/stream/2/;",
+    "codec": "MP3",
+    "bitrate": 256
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "https://play.radioregional.pt/stream/2/;",
+    "codec": "MP3",
+    "bitrate": 256
+  },
+  {
+    "name": "Rádio Regional Portugal",
+    "country": "PT",
+    "tags": [
+      "news",
+      "portuguese"
+    ],
+    "homepage": "https://radioregional.pt",
+    "url": "http://play.radioregional.pt:8002/;",
+    "codec": "MP3",
+    "bitrate": 256
+  },
+  {
+    "name": "Rádio Nova",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://www.radionova.fm",
+    "url": "https://centova.radios.pt/proxy/528?mp=/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Nova",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://www.radionova.fm",
+    "url": "http://centova.radios.pt:9528/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "No Outro Lado Do FM",
+    "country": "PT",
+    "tags": [
+      "portuguese"
+    ],
+    "homepage": "https://radionoar.pt",
+    "url": "https://radios.justweb.pt:7016/index",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "No Outro Lado Do FM",
+    "country": "PT",
+    "tags": [
+      "portuguese"
+    ],
+    "homepage": "https://radionoar.pt",
+    "url": "https://radios.justweb.pt/8034/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "No Outro Lado Do FM",
+    "country": "PT",
+    "tags": [
+      "portuguese"
+    ],
+    "homepage": "https://radionoar.pt",
+    "url": "https://stream.zeno.fm/ojjsinpv5bstv",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Cidade Hoje",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://cidadehoje.sapo.pt",
+    "url": "https://link.radios.pt/radiocidadehoje",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Cidade Hoje",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://cidadehoje.sapo.pt",
+    "url": "http://centova.radios.pt:8119/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Clube de Lamego",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://rclamego.com",
+    "url": "http://audio.ptisp.com:8110/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RCS - Rádio Clube de Sintra",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiorcs.pt",
+    "url": "http://centova.radios.pt:8445/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Gilão FM",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiogilao.com",
+    "url": "http://centova.radios.pt:9440/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Gilão FM",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiogilao.com",
+    "url": "https://link.radios.pt/gilaofm",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Gilão FM",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiogilao.com",
+    "url": "https://centova.radios.pt/proxy/440?mp=/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Hertz",
+    "country": "PT",
+    "tags": [
+      "adult",
+      "contemporary",
+      "portuguese"
+    ],
+    "homepage": "https://radiohertz.pt",
+    "url": "https://radios2.justweb.pt/8042/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Horizonte Algarve",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiohorizonte.com",
+    "url": "https://centova.radios.pt/proxy/458?mp=/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Horizonte Algarve",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiohorizonte.com",
+    "url": "https://link.radios.pt/radiohorizontealgarve",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Horizonte Algarve",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiohorizonte.com",
+    "url": "http://centova.radios.pt:9458/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Lafões",
+    "country": "PT",
+    "tags": [
+      "adult",
+      "contemporary",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "https://sp0.redeaudio.com/9304/stream",
+    "codec": "MP3",
+    "bitrate": 192
+  },
+  {
+    "name": "Rádio Portalegre",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radioportalegre.pt",
+    "url": "https://centova.radios.pt/proxy/492?mp=/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Portalegre",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radioportalegre.pt",
+    "url": "https://link.radios.pt/radioportalegre",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Portalegre",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radioportalegre.pt",
+    "url": "http://centova.radios.pt:9492/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "RCI FM",
+    "country": "PT",
+    "tags": [
+      "portuguese"
+    ],
+    "homepage": "https://rci.pt",
+    "url": "https://nl.digitalrm.pt:8002/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Riba Távora",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radioribatavora.pt",
+    "url": "http://centova.radios.pt:9542/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Marginal",
+    "country": "PT",
+    "tags": [
+      "easy",
+      "listening",
+      "portuguese"
+    ],
+    "homepage": "https://marginal.fm",
+    "url": "http://centova.radios.pt:8499/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Marginal",
+    "country": "PT",
+    "tags": [
+      "easy",
+      "listening",
+      "portuguese"
+    ],
+    "homepage": "https://marginal.fm",
+    "url": "https://link.radios.pt/radiomarginal",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Antena Sul",
+    "country": "PT",
+    "tags": [
+      "portuguese"
+    ],
+    "homepage": "https://www.antenasul.pt",
+    "url": "https://nl.digitalrm.pt:8014/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Antena Sul",
+    "country": "PT",
+    "tags": [
+      "portuguese"
+    ],
+    "homepage": "https://www.antenasul.pt",
+    "url": "https://nl.digitalrm.pt:8022/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Condestável",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiocondestavel.pt",
+    "url": "https://centova.radios.pt/proxy/427?mp=/stream",
+    "codec": "MP3",
+    "bitrate": 160
+  },
+  {
+    "name": "Rádio Condestável",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiocondestavel.pt",
+    "url": "https://link.radios.pt/radiocondestavel",
+    "codec": "MP3",
+    "bitrate": 160
+  },
+  {
+    "name": "Rádio Condestável",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiocondestavel.pt",
+    "url": "http://centova.radios.pt:8427/;",
+    "codec": "MP3",
+    "bitrate": 160
+  },
+  {
+    "name": "Rádio Dom Fuas FM",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://radiodomfuas.pt",
+    "url": "https://radiodomfuas.net/stream",
+    "codec": "AAC",
+    "bitrate": 191
+  },
+  {
+    "name": "Rádio Elvas",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://www.radioelvas.com",
+    "url": "https://radios2.justweb.pt/8066/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Altitude FM",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://www.altitude.fm",
+    "url": "https://link.radios.pt/altitudefm",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Altitude FM",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://www.altitude.fm",
+    "url": "http://centova.radios.pt:9034/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Alto Minho",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://radioaltominho.pt",
+    "url": "https://ec2.yesstreaming.net:3700/stream",
+    "codec": "MP3",
+    "bitrate": 320
+  },
+  {
+    "name": "Rádio Alto Minho",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "pop",
+      "portuguese"
+    ],
+    "homepage": "https://radioaltominho.pt",
+    "url": "https://ec2.yesstreaming.net:3705/stream",
+    "codec": "MP3",
+    "bitrate": 320
+  },
+  {
+    "name": "Antena Livre",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://www.antenalivre.pt",
+    "url": "https://centova.radios.pt/proxy/571?mp=/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Antena Livre",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://www.antenalivre.pt",
+    "url": "https://link.radios.pt/radioantenalivre",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Antena Livre",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://www.antenalivre.pt",
+    "url": "http://centova.radios.pt:8571/;",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Antena Minho",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://www.antenaminho.pt",
+    "url": "http://centova.radios.pt:9464/stream",
+    "codec": "MP3",
+    "bitrate": 160
+  },
+  {
+    "name": "Antena Minho",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "https://www.antenaminho.pt",
+    "url": "https://centova.radios.pt/proxy/464?mp=/stream",
+    "codec": "MP3",
+    "bitrate": 160
+  },
+  {
+    "name": "Rádio Santiago",
+    "country": "PT",
+    "tags": [
+      "adult",
+      "contemporary",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "http://cp.eu6.fastcast4u.com:5002/santiagoaac",
+    "codec": "AAC",
+    "bitrate": 64
+  },
+  {
+    "name": "Rádio Santiago",
+    "country": "PT",
+    "tags": [
+      "adult",
+      "contemporary",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "http://cp.eu6.fastcast4u.com:5002/canal2",
+    "codec": "AAC",
+    "bitrate": 64
+  },
+  {
+    "name": "Rádio Santiago",
+    "country": "PT",
+    "tags": [
+      "adult",
+      "contemporary",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "http://eu6.fastcast4u.com:5002/canal2",
+    "codec": "AAC",
+    "bitrate": 64
+  },
+  {
+    "name": "Rádio Santiago",
+    "country": "PT",
+    "tags": [
+      "adult",
+      "contemporary",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "https://eu6.fastcast4u.com/proxy/dzuigafo?mp=/stream",
+    "codec": "AAC",
+    "bitrate": 127
+  },
+  {
+    "name": "Rádio Santiago",
+    "country": "PT",
+    "tags": [
+      "adult",
+      "contemporary",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "http://eu6.fastcast4u.com:5002/stream",
+    "codec": "AAC",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Santiago",
+    "country": "PT",
+    "tags": [
+      "adult",
+      "contemporary",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "http://eu6.fastcast4u.com:5002/santiagoaac",
+    "codec": "AAC",
+    "bitrate": 139
+  },
+  {
+    "name": "Rádio Barcelos",
+    "country": "PT",
+    "tags": [
+      "sports",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "http://centova.radios.pt:8563/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Barcelos",
+    "country": "PT",
+    "tags": [
+      "sports",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "https://centova.radios.pt/proxy/563?mp=/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Barcelos",
+    "country": "PT",
+    "tags": [
+      "sports",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "https://link.radios.pt/radiobarcelos",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Brigantia",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "https://centova.radios.pt/proxy/491?mp=/stream",
+    "codec": "MP3",
+    "bitrate": 128
+  },
+  {
+    "name": "Rádio Brigantia",
+    "country": "PT",
+    "tags": [
+      "variety",
+      "portuguese"
+    ],
+    "homepage": "",
+    "url": "http://centova.radios.pt:8491/stream",
     "codec": "MP3",
     "bitrate": 128
   }
