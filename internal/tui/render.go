@@ -1,11 +1,11 @@
 package tui
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/pedrosousa13/onda/internal/directory"
 	"github.com/pedrosousa13/onda/internal/domain"
 )
 
@@ -222,7 +222,7 @@ func (m Model) header(crumb string) string {
 	left := m.st.Title.Render("onda") + m.st.Subtitle.Render("  ·  wander the airwaves")
 	right := m.st.Crumb.Render(crumb)
 	if m.refreshing {
-		mb := fmt.Sprintf("%.1f MB", float64(m.downloaded)/1_000_000)
+		mb := directory.HumanBytes(m.downloaded)
 		right = m.st.Meta.Render(m.sp.View()+" building offline catalog… "+mb+"  ") + right
 	}
 	w := m.contentWidth()
