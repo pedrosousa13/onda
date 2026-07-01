@@ -127,6 +127,49 @@ func (d *Directory) Popular(ctx context.Context) ([]domain.Station, error) {
 	return out, nil
 }
 
+// Countries returns country facets computed locally over base (corpus/embedded).
+func (d *Directory) Countries(ctx context.Context) ([]domain.Facet, error) {
+	sts, err := d.base(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return countryFacets(sts), nil
+}
+
+// Tags returns tag facets computed locally over base (corpus/embedded).
+func (d *Directory) Tags(ctx context.Context) ([]domain.Facet, error) {
+	sts, err := d.base(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return tagFacets(sts), nil
+}
+
+// Languages returns language facets computed locally over base (corpus/embedded).
+func (d *Directory) Languages(ctx context.Context) ([]domain.Facet, error) {
+	sts, err := d.base(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return languageFacets(sts), nil
+}
+
+// StationsBy returns stations matching a facet value on the given axis, sorted.
+func (d *Directory) StationsBy(ctx context.Context, axis domain.Axis, value string, srt domain.Sort) ([]domain.Station, error) {
+	sts, err := d.base(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []domain.Station
+	for _, s := range sts {
+		if axisMatches(s, axis, value) {
+			out = append(out, s)
+		}
+	}
+	sortStations(out, srt)
+	return out, nil
+}
+
 // Refresh downloads a fresh full dump, replaces the corpus, and persists it.
 // Returns the new corpus. The only method that uses the network.
 func (d *Directory) Refresh(ctx context.Context) ([]domain.Station, error) {
