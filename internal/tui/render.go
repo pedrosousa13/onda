@@ -352,12 +352,12 @@ func (m Model) renderRow(w, idx int, s domain.Station) string {
 	}
 	rightPlain := meta + starPlain
 
-	avail := w - 2 /*marker*/ - 1 /*gap*/ - lipgloss.Width(rightPlain)
+	avail := w - 2 /*marker*/ - 1 /*gap*/ - dispWidth(rightPlain)
 	if avail < 4 {
 		avail = 4
 	}
-	name := truncate(s.Name, avail)
-	pad := avail - lipgloss.Width(name)
+	name := truncate(sanitizeName(s.Name), avail)
+	pad := avail - dispWidth(name)
 	if pad < 0 {
 		pad = 0
 	}
@@ -398,12 +398,12 @@ func (m Model) renderFacetRow(w, idx int, f domain.Facet) string {
 		rightPlain = humanCount(f.Count)
 	}
 
-	avail := w - 2 /*marker*/ - 1 /*gap*/ - lipgloss.Width(rightPlain)
+	avail := w - 2 /*marker*/ - 1 /*gap*/ - dispWidth(rightPlain)
 	if avail < 4 {
 		avail = 4
 	}
-	name := truncate(f.Name, avail)
-	pad := avail - lipgloss.Width(name)
+	name := truncate(sanitizeName(f.Name), avail)
+	pad := avail - dispWidth(name)
 	if pad < 0 {
 		pad = 0
 	}
@@ -571,15 +571,51 @@ func clampWidth(s string, w int) string {
 	return lipgloss.NewStyle().MaxWidth(w).Render(s)
 }
 
+// runeCells is a CONSERVATIVE cell count for one rune: wide glyphs (CJK) keep
+// their 2 cells, but everything else — including combining marks that Unicode
+// (and lipgloss) count as 0 — is treated as at least 1 cell. Terminals that
+// don't shape complex scripts (Tamil, Devanagari, …) render each codepoint in
+// its own cell, so lipgloss's Unicode-correct width UNDER-counts what the
+// terminal actually draws. Over-counting here is the safe direction: a row can
+// never end up wider than its budget, which would soft-wrap and desync Bubble
+// Tea's line-diff renderer.
+func runeCells(r rune) int {
+	if w := lipgloss.Width(string(r)); w > 1 {
+		return w
+	}
+	return 1
+}
+
+// dispWidth is the conservative display width of s (see runeCells).
+func dispWidth(s string) int {
+	w := 0
+	for _, r := range s {
+		w += runeCells(r)
+	}
+	return w
+}
+
+// sanitizeName strips control characters (tabs, stray newlines from dirty
+// station data) that would otherwise break row layout, and trims the result.
+func sanitizeName(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, s)
+	return strings.TrimSpace(s)
+}
+
 // truncate shortens s to at most w display columns, adding an ellipsis.
-// It measures by display width (not rune count) so wide glyphs (CJK, etc.)
-// can't produce a row wider than its budget — an overflowing row soft-wraps
-// in the terminal and desyncs Bubble Tea's line-diff renderer.
+// It measures conservatively (dispWidth) so wide or complex-script glyphs can't
+// produce a row wider than its budget — an overflowing row soft-wraps in the
+// terminal and desyncs Bubble Tea's line-diff renderer.
 func truncate(s string, w int) string {
 	if w <= 0 {
 		return ""
 	}
-	if lipgloss.Width(s) <= w {
+	if dispWidth(s) <= w {
 		return s
 	}
 	if w == 1 {
@@ -588,7 +624,7 @@ func truncate(s string, w int) string {
 	var b strings.Builder
 	width := 0
 	for _, r := range s {
-		rw := lipgloss.Width(string(r))
+		rw := runeCells(r)
 		if width+rw > w-1 { // leave one column for the ellipsis
 			break
 		}

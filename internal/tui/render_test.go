@@ -2,13 +2,19 @@ package tui
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/pedrosousa13/onda/internal/domain"
 	"github.com/pedrosousa13/onda/internal/update"
 )
+
+var ansiRe = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+func stripANSI(s string) string { return ansiRe.ReplaceAllString(s, "") }
 
 // sampleModel builds a populated model for visual inspection of View() output.
 func sampleModel() Model {
@@ -256,5 +262,50 @@ func TestViewNeverExceedsTerminalWidth(t *testing.T) {
 		if w := lipgloss.Width(ln); w > m.width {
 			t.Fatalf("View line width %d exceeds terminal width %d: %q", w, m.width, ln)
 		}
+	}
+}
+
+func TestDispWidthConservative(t *testing.T) {
+	if got := dispWidth("ab"); got != 2 {
+		t.Fatalf("dispWidth(ab) = %d, want 2", got)
+	}
+	if got := dispWidth("日本語"); got != 6 { // 3 CJK glyphs, 2 cells each
+		t.Fatalf("dispWidth(CJK) = %d, want 6", got)
+	}
+	// Tamil combining marks are 0-width in Unicode; conservatively each rune is
+	// >=1 cell, so dispWidth == rune count and is never below lipgloss's width.
+	tamil := "தமிழ்"
+	if dispWidth(tamil) != utf8.RuneCountInString(tamil) {
+		t.Fatalf("dispWidth(tamil) = %d, want rune count %d", dispWidth(tamil), utf8.RuneCountInString(tamil))
+	}
+	if dispWidth(tamil) < lipgloss.Width(tamil) {
+		t.Fatalf("dispWidth must never undercount lipgloss: %d < %d", dispWidth(tamil), lipgloss.Width(tamil))
+	}
+}
+
+func TestSanitizeNameStripsControl(t *testing.T) {
+	if got := sanitizeName("a\tb\nc"); strings.ContainsAny(got, "\t\n") {
+		t.Fatalf("control chars not stripped: %q", got)
+	}
+	if got := sanitizeName("  padded  "); got != "padded" {
+		t.Fatalf("sanitizeName should trim, got %q", got)
+	}
+}
+
+// The real station + terminal width that reproduced the wrap/desync bug: a
+// Tamil name lipgloss measured shorter than the terminal renders it. Measured
+// conservatively (as the terminal draws it), the row must fit.
+func TestRenderRowComplexScriptNeverOverflowsTerminal(t *testing.T) {
+	m := Model{
+		width: 60, height: 24, st: newStyles(themeByName("catppuccin-mocha")),
+		favKeys: map[string]bool{}, hoverIdx: -1,
+	}
+	s := domain.Station{
+		Name:    "Tube Tamil FM Radio டியூப் தமிழ் எஃப்.எம் பண்பலை ரேடியோ",
+		Country: "Sri Lanka", Votes: 4600,
+	}
+	plain := stripANSI(m.renderRow(m.contentWidth(), 0, s))
+	if got := dispWidth(plain); got > m.contentWidth() {
+		t.Fatalf("row conservative width = %d, want <= contentWidth %d: %q", got, m.contentWidth(), plain)
 	}
 }
