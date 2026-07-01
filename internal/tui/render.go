@@ -101,6 +101,64 @@ func (m Model) viewList() string {
 	return b.String()
 }
 
+// viewBrowseMenu renders the browse axis/facet chooser: axis picker at level
+// 0, then the facet list ("countries"/"genres"/"languages") at level 1.
+func (m Model) viewBrowseMenu() string {
+	crumb := "browse"
+	if m.browseLevel != 0 {
+		switch m.browseAxis {
+		case domain.AxisTag:
+			crumb = "genres"
+		case domain.AxisLanguage:
+			crumb = "languages"
+		default:
+			crumb = "countries"
+		}
+	}
+	if m.loading {
+		crumb = m.sp.View() + " loading"
+	}
+
+	var b strings.Builder
+	b.WriteString(m.header(crumb))
+	b.WriteString("\n\n")
+
+	reserved := chromeHeight
+	listRows := m.height - reserved
+	if listRows < 3 {
+		listRows = 3
+	}
+
+	if m.loading && len(m.facets) == 0 {
+		b.WriteString(m.st.Meta.Render("  "+m.sp.View()+" finding facets…") + "\n")
+		for i := 1; i < listRows; i++ {
+			b.WriteString("\n")
+		}
+	} else {
+		start, end := windowBounds(m.cursor, len(m.facets), listRows)
+		for i := start; i < end; i++ {
+			b.WriteString(m.renderFacetRow(m.contentWidth(), i, m.facets[i]) + "\n")
+		}
+		for i := end - start; i < listRows; i++ {
+			b.WriteString("\n")
+		}
+	}
+
+	b.WriteString("\n")
+	b.WriteString(m.nowPanel(m.contentWidth()))
+	b.WriteString("\n")
+	b.WriteString(m.browseMenuFooter())
+	return b.String()
+}
+
+// browseMenuFooter is the key-hint bar for the browse axis/facet chooser.
+func (m Model) browseMenuFooter() string {
+	pairs := [][2]string{
+		{"↑↓", "move"}, {"⏎", "open"}, {"esc", "back"}, {"q", "quit"},
+	}
+	return m.renderFooterPairs(pairs)
+}
+
 // viewHome is the landing screen: now-playing hero on top, then favorites
 // (or a Popular preview when there are none).
 func (m Model) viewHome() string {
@@ -215,7 +273,7 @@ func (m Model) homeFavWindow(listRows int) (dispRecN, favStart, favEnd, favRows 
 func (m Model) homeFooter() string {
 	pairs := [][2]string{
 		{"↑↓", "move"}, {"⏎", "play"}, {"+/-", "vol"}, {"[ ]", "quality"},
-		{"/", "search"}, {"p", "popular"}, {"F", "favorites"}, {"a", "add"},
+		{"/", "search"}, {"b", "browse"}, {"p", "popular"}, {"F", "favorites"}, {"a", "add"},
 		{",", "settings"}, {"q", "quit"},
 	}
 	return m.renderFooterPairs(pairs)
@@ -281,6 +339,12 @@ func (m Model) renderRow(w, idx int, s domain.Station) string {
 			meta += " · " + q
 		}
 	}
+	if s.Votes > 0 {
+		meta += " · " + humanCount(s.Votes) + "♥"
+	}
+	if s.Trend > 0 {
+		meta += " ↑"
+	}
 	fav := m.favKeys[favKey(s)]
 	starPlain := ""
 	if fav {
@@ -315,6 +379,52 @@ func (m Model) renderRow(w, idx int, s domain.Station) string {
 		starS = " " + m.st.Star.Render("★")
 	}
 	return marker + nameS + strings.Repeat(" ", pad) + " " + m.st.Meta.Render(meta) + starS
+}
+
+// humanCount formats a count for compact display: 412→"412", 1200→"1.2k".
+func humanCount(n int) string {
+	if n < 1000 {
+		return strconv.Itoa(n)
+	}
+	return strconv.FormatFloat(float64(n)/1000, 'f', 1, 64) + "k"
+}
+
+// renderFacetRow lays out one browse facet: ▌ Portugal … 412
+func (m Model) renderFacetRow(w, idx int, f domain.Facet) string {
+	sel := idx == m.cursor
+
+	rightPlain := ""
+	if f.Count > 0 {
+		rightPlain = humanCount(f.Count)
+	}
+
+	avail := w - 2 /*marker*/ - 1 /*gap*/ - lipgloss.Width(rightPlain)
+	if avail < 4 {
+		avail = 4
+	}
+	name := truncate(f.Name, avail)
+	pad := avail - lipgloss.Width(name)
+	if pad < 0 {
+		pad = 0
+	}
+
+	var marker, nameS string
+	switch {
+	case sel:
+		marker = m.st.SelBar.Render("▌ ")
+		nameS = m.st.SelName.Render(name)
+	case idx == m.hoverIdx:
+		marker = m.st.Meta.Render("· ") // mouse hover cue
+		nameS = m.st.Item.Render(name)
+	default:
+		marker = "  "
+		nameS = m.st.Item.Render(name)
+	}
+	right := ""
+	if f.Count > 0 {
+		right = " " + m.st.Meta.Render(rightPlain)
+	}
+	return marker + nameS + strings.Repeat(" ", pad) + right
 }
 
 // nowPanel is the bordered "now playing" hero. Line 1: station + volume,
@@ -401,7 +511,10 @@ func (m Model) footer() string {
 	pairs := [][2]string{
 		{"↑↓", "move"}, {"⏎", "play"}, {"s", "stop"}, {"+/-", "vol"},
 		{"[ ]", "quality"}, {"f", "★"}, {"F", "favs"}, {"/", "search"},
-		{"a", "add"}, {",", "settings"}, {"esc", "home"}, {"q", "quit"},
+		{"b", "browse"}, {"a", "add"}, {",", "settings"}, {"esc", "home"}, {"q", "quit"},
+	}
+	if m.browseLevel == 2 {
+		pairs = append(pairs, [2]string{"o", "sort"}, [2]string{"O", "reverse"})
 	}
 	return m.renderFooterPairs(pairs)
 }

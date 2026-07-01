@@ -165,3 +165,42 @@ func repeat(s string, n int) string {
 	}
 	return out
 }
+
+func TestHumanCount(t *testing.T) {
+	cases := []struct {
+		in   int
+		want string
+	}{
+		{412, "412"},
+		{1200, "1.2k"},
+		{0, "0"},
+		{999, "999"},
+	}
+	for _, c := range cases {
+		if got := humanCount(c.in); got != c.want {
+			t.Errorf("humanCount(%d) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestRenderRowShowsVotesTrendOnlyWhenPresent(t *testing.T) {
+	m := Model{width: 60, st: newStyles(themeByName("catppuccin-mocha")), favKeys: map[string]bool{}, hoverIdx: -1}
+
+	withBoth := domain.Station{Name: "KEXP", Country: "United States", Votes: 1200, Trend: 1}
+	row := m.renderRow(m.contentWidth(), 0, withBoth)
+	if !strings.Contains(row, "1.2k♥") {
+		t.Errorf("row with votes = %q, want contains %q", row, "1.2k♥")
+	}
+	if !strings.Contains(row, "↑") {
+		t.Errorf("row with trend = %q, want contains %q", row, "↑")
+	}
+
+	bare := domain.Station{Name: "KEXP", Country: "United States"}
+	row = m.renderRow(m.contentWidth(), 0, bare)
+	if strings.Contains(row, "♥") {
+		t.Errorf("bare row = %q, want no %q", row, "♥")
+	}
+	if strings.Contains(row, "↑") {
+		t.Errorf("bare row = %q, want no %q", row, "↑")
+	}
+}

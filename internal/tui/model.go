@@ -961,6 +961,8 @@ func (m Model) View() string {
 		s = m.viewAdd()
 	case viewSettings:
 		s = m.viewSettings()
+	case viewBrowseMenu:
+		s = m.viewBrowseMenu()
 	default:
 		s = m.viewList()
 	}
