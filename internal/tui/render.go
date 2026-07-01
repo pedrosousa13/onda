@@ -106,7 +106,11 @@ func (m Model) viewList() string {
 func (m Model) viewHome() string {
 	var b strings.Builder
 	b.WriteString(m.header("home"))
-	b.WriteString("\n\n")
+	b.WriteString("\n")
+	if m.bannerVisible() {
+		b.WriteString(m.catalogBanner())
+	}
+	b.WriteString("\n")
 
 	// Centered hero, capped so it doesn't stretch on wide terminals.
 	heroWidth := m.contentWidth()
@@ -255,6 +259,16 @@ func (m Model) updateBanner() string {
 		msg = v + " available — see github.com/pedrosousa13/onda/releases"
 	}
 	return m.st.Meta.Render("  ▲ "+msg) + m.st.Help.Render("  (U dismiss)")
+}
+
+// catalogBanner offers the full offline catalog on first launch, while
+// consent is still undecided (offlineCatalog == "ask"). Shown only on Home.
+func (m Model) catalogBanner() string {
+	line1 := m.st.Meta.Render("  ⓘ Enable full offline catalog for typo-tolerant search?")
+	line2 := m.st.Help.Render("    "+catalogSizeHint+", downloads in background.   ") +
+		m.st.Key.Render("[y]") + m.st.Help.Render(" yes   ") +
+		m.st.Key.Render("[n]") + m.st.Help.Render(" not now")
+	return line1 + "\n" + line2 + "\n"
 }
 
 // renderRow lays out one station: ▌ name … country · 128k ★

@@ -40,6 +40,10 @@ const connectTimeout = 12 * time.Second
 // homeRecentsCap bounds the "recent" section shown above favorites on Home.
 const homeRecentsCap = 5
 
+// catalogSizeHint is the approximate download size shown in the offer UI.
+// (Task 10 replaces this with a measured figure.)
+const catalogSizeHint = "~30 MB"
+
 type Player interface {
 	Play(url string) error
 	Stop() error
@@ -58,6 +62,7 @@ type Store interface {
 	SaveTracking(string) error
 	SaveHistory(bool) error
 	SaveTheme(string) error
+	SaveOfflineCatalog(string) error
 	SaveUpdateCheck(bool) error
 	SaveLiveSearch(bool) error
 	SaveVolume(int) error
@@ -68,40 +73,41 @@ type Store interface {
 }
 
 type Model struct {
-	dir            Searcher
-	player         Player
-	store          Store
-	view           view
-	stations       []domain.Station
-	cursor         int
-	hoverIdx       int // station row under the mouse, -1 if none
-	status         string
-	nowTitle       string
-	playing        domain.Station
-	varIdx         int // index into playing.Variants currently streaming
-	isPlaying      bool
-	phase          playbackPhase
-	playErr        string // message shown when phase == phaseFailed
-	playAttempt    int    // monotonic; guards stale connect timeouts
-	quality        domain.QualityPref
-	tracking       string
-	history        bool
-	volume         int
-	normalize      bool
-	themeName      string
-	st             Styles
-	width          int
-	height         int
-	favKeys        map[string]bool
-	homeRecents    []domain.Station // leading "recent" section on Home (opt-in, capped)
-	sp             spinner.Model
-	loading        bool
-	refreshing     bool
-	needsRefresh   bool
-	offlineCatalog string // consent: ask|on|off — gates auto-download in Init
-	downloaded     int64
-	progress       chan int64
-	crumb          string
+	dir             Searcher
+	player          Player
+	store           Store
+	view            view
+	stations        []domain.Station
+	cursor          int
+	hoverIdx        int // station row under the mouse, -1 if none
+	status          string
+	nowTitle        string
+	playing         domain.Station
+	varIdx          int // index into playing.Variants currently streaming
+	isPlaying       bool
+	phase           playbackPhase
+	playErr         string // message shown when phase == phaseFailed
+	playAttempt     int    // monotonic; guards stale connect timeouts
+	quality         domain.QualityPref
+	tracking        string
+	history         bool
+	volume          int
+	normalize       bool
+	themeName       string
+	st              Styles
+	width           int
+	height          int
+	favKeys         map[string]bool
+	homeRecents     []domain.Station // leading "recent" section on Home (opt-in, capped)
+	sp              spinner.Model
+	loading         bool
+	refreshing      bool
+	needsRefresh    bool
+	offlineCatalog  string // consent: ask|on|off — gates auto-download in Init
+	bannerDismissed bool   // "not now" on the Home offline-catalog banner this session
+	downloaded      int64
+	progress        chan int64
+	crumb           string
 
 	update         update.Status
 	updateDismiss  bool
@@ -196,6 +202,23 @@ func (m Model) startRefresh() (Model, tea.Cmd) {
 	m.progress = make(chan int64, 1)
 	m.refreshing = true
 	return m, tea.Batch(refreshWithProgressCmd(m.dir, m.progress), listenProgressCmd(m.progress), m.sp.Tick)
+}
+
+// enableCatalog opts in, persists consent, and starts the background download.
+// Shared by the Home banner, the search hint, and the settings row.
+func (m Model) enableCatalog() (Model, tea.Cmd) {
+	m.offlineCatalog = "on"
+	if m.store != nil {
+		_ = m.store.SaveOfflineCatalog("on")
+	}
+	return m.startRefresh()
+}
+
+// bannerVisible reports whether the first-launch offline-catalog offer should
+// be shown: only on Home, only while consent is still undecided, and only
+// until the user dismisses it with "not now" for this session.
+func (m Model) bannerVisible() bool {
+	return m.view == viewHome && m.offlineCatalog == "ask" && !m.bannerDismissed
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -382,6 +405,18 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateAdd(k)
 	case viewSettings:
 		return m.updateSettings(k)
+	}
+
+	// The first-launch offline-catalog offer intercepts y/n/esc while it's up,
+	// on top of (not instead of) the normal Home key handling below.
+	if m.bannerVisible() {
+		switch k.String() {
+		case "y":
+			return m.enableCatalog()
+		case "n", "esc":
+			m.bannerDismissed = true
+			return m, nil
+		}
 	}
 
 	// Browse + favorites: list navigation.

@@ -61,6 +61,7 @@ type fakeStore struct {
 	savedNormalize bool
 	recents        []domain.Station
 	favs           []domain.Station
+	savedCatalog   string
 }
 
 func (f *fakeStore) Favorites() ([]domain.Station, error)    { return f.favs, nil }
@@ -72,6 +73,7 @@ func (f *fakeStore) SaveQuality(domain.QualityPref) error    { return nil }
 func (f *fakeStore) SaveTracking(string) error               { return nil }
 func (f *fakeStore) SaveHistory(bool) error                  { return nil }
 func (f *fakeStore) SaveTheme(string) error                  { return nil }
+func (f *fakeStore) SaveOfflineCatalog(v string) error       { f.savedCatalog = v; return nil }
 func (f *fakeStore) SaveUpdateCheck(bool) error              { return nil }
 func (f *fakeStore) SaveLiveSearch(bool) error               { return nil }
 func (f *fakeStore) SaveVolume(v int) error                  { f.savedVolume = v; return nil }
@@ -510,5 +512,21 @@ func TestCorpusProgressUpdatesThenCompletes(t *testing.T) {
 	m3, _ := m2.(Model).Update(corpusRefreshedMsg{stations: []domain.Station{{Name: "X"}}})
 	if m3.(Model).refreshing {
 		t.Fatal("refreshing should be false after completion")
+	}
+}
+
+func TestHomeBannerEnableStartsDownload(t *testing.T) {
+	fs := &fakeStore{}
+	m := Model{view: viewHome, offlineCatalog: "ask", store: fs, dir: stubDir{}}
+	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	mm := m2.(Model)
+	if mm.offlineCatalog != "on" {
+		t.Fatalf("consent = %q, want on", mm.offlineCatalog)
+	}
+	if fs.savedCatalog != "on" {
+		t.Fatal("consent not persisted")
+	}
+	if !mm.refreshing {
+		t.Fatal("download not started")
 	}
 }
