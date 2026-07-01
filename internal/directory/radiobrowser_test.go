@@ -113,6 +113,11 @@ func TestFetchAllRequestsHideBroken(t *testing.T) {
 	if !strings.Contains(gotPath, "hidebroken=true") {
 		t.Fatalf("full-dump path missing hidebroken=true: %s", gotPath)
 	}
+	// A high limit is mandatory: without it /json/stations caps at 1000 rows,
+	// which would make the "full" corpus a tiny fraction of the catalogue.
+	if !strings.Contains(gotPath, "limit=100000") {
+		t.Fatalf("full-dump path missing high limit: %s", gotPath)
+	}
 }
 
 // chunkedBody yields the body one bounded chunk per Read, so the countingReader

@@ -180,8 +180,10 @@ func (rb *RadioBrowser) getWithFallback(ctx context.Context, path string) ([]byt
 
 // FetchAll downloads the entire station list to build the local corpus. The
 // HTTP transport negotiates gzip transparently, so the transfer is compressed.
+// The explicit high limit is required: /json/stations defaults to only 1000
+// rows, which would leave the "full" corpus a tiny fraction of the catalogue.
 func (rb *RadioBrowser) FetchAll(ctx context.Context) ([]domain.Station, error) {
-	raw, err := rb.fetchRaw(ctx, "/json/stations?hidebroken=true")
+	raw, err := rb.fetchRaw(ctx, "/json/stations?hidebroken=true&limit=100000")
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +251,7 @@ func (rb *RadioBrowser) getSequentialProgress(ctx context.Context, path string, 
 // arrive. It uses a sequential single-mirror path (see getSequentialProgress)
 // so progress reporting stays monotonic.
 func (rb *RadioBrowser) FetchAllWithProgress(ctx context.Context, onProgress func(int64)) ([]domain.Station, error) {
-	body, err := rb.getSequentialProgress(ctx, "/json/stations?hidebroken=true", onProgress)
+	body, err := rb.getSequentialProgress(ctx, "/json/stations?hidebroken=true&limit=100000", onProgress)
 	if err != nil {
 		return nil, err
 	}
