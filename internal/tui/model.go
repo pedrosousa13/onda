@@ -275,9 +275,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.status = "station list updated"
-		// Re-pull only the popular/initial preview — keeps it vote-sorted and
-		// avoids overwriting a search or favorites view.
-		if m.view == viewHome || (m.view == viewBrowse && m.crumb == "popular") {
+		// Re-pull the vote-sorted popular preview only where it's actually shown:
+		// on Home ONLY when there are no favorites (otherwise Home shows the
+		// favorites list — don't clobber it), and on the popular browse view.
+		if (m.view == viewHome && len(m.favKeys) == 0) || (m.view == viewBrowse && m.crumb == "popular") {
 			return m.load(popularCmd(m.dir))
 		}
 		return m, nil

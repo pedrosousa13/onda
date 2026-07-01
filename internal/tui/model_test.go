@@ -36,6 +36,30 @@ func (stubDir) RefreshWithProgress(context.Context, func(int64)) ([]domain.Stati
 
 var errSample = errors.New("boom")
 
+func TestCorpusRefreshedKeepsFavoritesOnHome(t *testing.T) {
+	favs := []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}}
+	m := Model{view: viewHome, store: &fakeStore{favs: favs}, dir: stubDir{}}
+	m.markFavorites() // favKeys now non-empty (user has favorites)
+	m.stations = favs
+	out, _ := m.Update(corpusRefreshedMsg{stations: []domain.Station{{Name: "PopularOnly"}}})
+	got := out.(Model)
+	if got.loading {
+		t.Fatal("refresh must not reload/clobber the favorites list on Home")
+	}
+	if len(got.stations) != 1 || got.stations[0].Name != "KEXP" {
+		t.Fatalf("favorites should be preserved on Home, got %+v", got.stations)
+	}
+}
+
+func TestCorpusRefreshedReloadsPopularWhenNoFavorites(t *testing.T) {
+	m := Model{view: viewHome, store: &fakeStore{}, dir: stubDir{}} // no favorites
+	m.markFavorites()
+	out, cmd := m.Update(corpusRefreshedMsg{stations: nil})
+	if !out.(Model).loading || cmd == nil {
+		t.Fatal("with no favorites, Home should reload the vote-sorted popular preview")
+	}
+}
+
 func TestUpdateStationsMsgPopulatesList(t *testing.T) {
 	m := Model{}
 	updated, _ := m.Update(stationsMsg{stations: []domain.Station{{Name: "KEXP"}}})
