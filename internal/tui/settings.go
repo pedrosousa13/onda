@@ -82,9 +82,11 @@ func (m Model) viewSettings() string {
 	b.WriteString(row("6", "live search", fmt.Sprintf("%v", m.liveSearch)) + "\n")
 	b.WriteString(row("7", "loudness normalization", fmt.Sprintf("%v", m.normalize)) + "\n")
 
-	catalogState := "off"
-	if m.offlineCatalog == "on" {
-		catalogState = "on"
+	// Show the true consent state so "ask" (undecided, banner still offering)
+	// isn't misread as "off" (explicitly declined).
+	catalogState := m.offlineCatalog
+	if catalogState == "" {
+		catalogState = "ask"
 	}
 	b.WriteString(row("8", "offline catalog", fmt.Sprintf("%s (%s)", catalogState, catalogSizeHint)) + "\n\n")
 

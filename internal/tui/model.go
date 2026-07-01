@@ -198,7 +198,12 @@ func (m Model) load(cmd tea.Cmd) (tea.Model, tea.Cmd) {
 }
 
 // startRefresh kicks off a background corpus download with live byte progress.
+// It no-ops if a download is already in flight, so rapid enable/toggle (banner,
+// hint, settings, or R) can't spawn concurrent full-dump fetches.
 func (m Model) startRefresh() (Model, tea.Cmd) {
+	if m.refreshing {
+		return m, nil
+	}
 	m.progress = make(chan int64, 1)
 	m.refreshing = true
 	return m, tea.Batch(refreshWithProgressCmd(m.dir, m.progress), listenProgressCmd(m.progress), m.sp.Tick)
