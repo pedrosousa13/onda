@@ -115,6 +115,9 @@ onda
 | `R` | Refresh the local station list from Radio Browser |
 | `esc` | Back to Home |
 | `/` | Search |
+| `b` | Browse by country / genre / language |
+| `o` | Sort browse list (votes / name / trending) |
+| `O` | Reverse sort order |
 | `a` | Add a custom station |
 | `,` | Settings |
 | `u` / `U` | Update onda (when offered) / dismiss the update banner |
@@ -167,8 +170,9 @@ On launch you land on **Home** — your now-playing panel, a **recent** section 
 play history is on, plus your favorites (or a **Popular** preview, the top-voted
 stations worldwide, until you've saved any).
 From anywhere: `esc` returns Home, `p` opens the full Popular list, `F` favorites,
-`/` search. Popular comes from Radio Browser's open ranking — reading it reports
-nothing about you.
+`b` browse by country/genre/language (with `o`/`O` to sort), or `/` search. Browse and Popular
+read the local station catalog and are richest once you've downloaded the full offline directory (see Settings / live search).
+Popular comes from Radio Browser's open ranking — reading it reports nothing about you.
 
 ### Themes
 

@@ -47,6 +47,8 @@ type Station struct {
 	Homepage   string
 	Votes      int // community votes/popularity from Radio Browser
 	ClickCount int // recent listens from Radio Browser
+	Language   string
+	Trend      int // Trend is the Radio Browser clicktrend (max across grouped records); >0 = rising
 	Variants   []StreamVariant
 }
 

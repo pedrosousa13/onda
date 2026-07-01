@@ -11,8 +11,8 @@ import (
 )
 
 const rbSample = `[
-  {"name":"KEXP","homepage":"kexp.org","url_resolved":"u128","codec":"MP3","bitrate":128,"countrycode":"US","country":"United States","tags":"indie,seattle"},
-  {"name":"KEXP","homepage":"kexp.org","url_resolved":"u64","codec":"MP3","bitrate":64,"country":"United States","tags":""}
+  {"name":"KEXP","homepage":"kexp.org","url_resolved":"u128","codec":"MP3","bitrate":128,"countrycode":"US","country":"United States","tags":"indie,seattle","language":"English","clicktrend":3},
+  {"name":"KEXP","homepage":"kexp.org","url_resolved":"u64","codec":"MP3","bitrate":64,"country":"United States","tags":"","language":"English","clicktrend":5}
 ]`
 
 func TestRadioBrowserSearchGroups(t *testing.T) {
@@ -70,8 +70,8 @@ func (s dumpStubRT) RoundTrip(*http.Request) (*http.Response, error) {
 
 func TestFetchAllGroupsDump(t *testing.T) {
 	const dump = `[
-	  {"name":"Radio Eins","url_resolved":"http://a","country":"Germany","bitrate":128,"votes":42},
-	  {"name":"Jazz FM","url_resolved":"http://b","country":"United Kingdom","bitrate":64,"votes":3}
+	  {"name":"Radio Eins","url_resolved":"http://a","country":"Germany","bitrate":128,"votes":42,"language":"German","clicktrend":2},
+	  {"name":"Jazz FM","url_resolved":"http://b","country":"United Kingdom","bitrate":64,"votes":3,"language":"English","clicktrend":0}
 	]`
 	rb := NewRadioBrowser(RBOptions{
 		Mirrors: []string{"http://example.test"},
@@ -161,9 +161,9 @@ func TestFetchAllWithProgressReportsMonotonicBytes(t *testing.T) {
 	// out on a separate Read, so onProgress fires once per chunk and the
 	// strictly-increasing assertion below is actually exercised.
 	chunks := [][]byte{
-		[]byte(`[{"name":"Radio Eins","url_resolved":"http://a","country":"Germany","bitrate":128,"votes":42},`),
-		[]byte(`{"name":"Jazz FM","url_resolved":"http://b","country":"United Kingdom","bitrate":64,"votes":3},`),
-		[]byte(`{"name":"BBC","url_resolved":"http://c","country":"United Kingdom","bitrate":320,"votes":7}]`),
+		[]byte(`[{"name":"Radio Eins","url_resolved":"http://a","country":"Germany","bitrate":128,"votes":42,"language":"German","clicktrend":1},`),
+		[]byte(`{"name":"Jazz FM","url_resolved":"http://b","country":"United Kingdom","bitrate":64,"votes":3,"language":"English","clicktrend":0},`),
+		[]byte(`{"name":"BBC","url_resolved":"http://c","country":"United Kingdom","bitrate":320,"votes":7,"language":"English","clicktrend":2}]`),
 	}
 	var total int64
 	for _, c := range chunks {

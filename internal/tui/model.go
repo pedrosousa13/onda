@@ -22,6 +22,7 @@ const (
 	viewAdd
 	viewSettings
 	viewRecents
+	viewBrowseMenu
 )
 
 // playbackPhase tracks what the now-playing panel should honestly report.
@@ -108,6 +109,12 @@ type Model struct {
 	downloaded      int64
 	progress        chan int64
 	crumb           string
+
+	browseLevel int // 0=axis menu, 1=facet list, 2=stations within a facet
+	browseAxis  domain.Axis
+	facets      []domain.Facet
+	browseValue string
+	browseSort  domain.Sort
 
 	update         update.Status
 	updateDismiss  bool
@@ -274,6 +281,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cursor = 0
 		m.markFavorites()
 		return m, nil
+	case facetsMsg:
+		m.loading = false
+		m.browseAxis = msg.axis
+		m.facets = msg.facets
+		m.browseLevel = 1
+		m.cursor = 0
+		return m, nil
 	case errMsg:
 		m.loading = false
 		m.status = "error: " + msg.err.Error()
@@ -365,7 +379,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // add, settings) keep their keyboard focus and ignore the mouse.
 func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	switch m.view {
-	case viewSearch, viewAdd, viewSettings:
+	case viewSearch, viewAdd, viewSettings, viewBrowseMenu:
 		return m, nil
 	}
 	switch msg.Button {
@@ -443,6 +457,8 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateAdd(k)
 	case viewSettings:
 		return m.updateSettings(k)
+	case viewBrowseMenu:
+		return m.updateBrowseMenu(k)
 	}
 
 	// The first-launch offline-catalog offer intercepts y/n/esc while it's up,
@@ -497,6 +513,7 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "/":
 		m.view = viewSearch
+		m.browseLevel = 0
 		m.search.SetValue("")
 		m.search.Focus()
 		m.hoverIdx = -1
@@ -512,6 +529,7 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "p", "P":
 		m.view = viewBrowse
+		m.browseLevel = 0
 		m.crumb = "popular"
 		return m.load(popularCmd(m.dir))
 	case "R":
@@ -521,6 +539,7 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "a":
 		m.view = viewAdd
+		m.browseLevel = 0
 		m.addFocus = 0
 		m.addName.SetValue("")
 		m.addURL.SetValue("")
@@ -530,7 +549,27 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case ",":
 		m.view = viewSettings
 		return m, nil
+	case "b", "B":
+		return m.openBrowse()
+	case "o":
+		if m.browseLevel == 2 {
+			m.browseSort = m.browseSort.Next()
+			m.crumb = m.browseValue + " · " + m.browseSort.Label()
+			return m.load(stationsByCmd(m.dir, m.browseAxis, m.browseValue, m.browseSort))
+		}
+	case "O":
+		if m.browseLevel == 2 {
+			m.browseSort.Flip = !m.browseSort.Flip
+			m.crumb = m.browseValue + " · " + m.browseSort.Label()
+			return m.load(stationsByCmd(m.dir, m.browseAxis, m.browseValue, m.browseSort))
+		}
 	case "esc":
+		if m.browseLevel == 2 {
+			m.view = viewBrowseMenu
+			m.browseLevel = 1
+			m.cursor = 0
+			return m, nil
+		}
 		return m.goHome()
 	}
 	return m, nil
@@ -540,6 +579,7 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 // else a Popular preview.
 func (m Model) goHome() (tea.Model, tea.Cmd) {
 	m.view = viewHome
+	m.browseLevel = 0
 	m.crumb = "home"
 	m.cursor = 0
 	m.homeRecents = m.recentsForHome()
@@ -710,6 +750,7 @@ func (m Model) showFavorites() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.view = viewFavorites
+	m.browseLevel = 0
 	m.stations = favs
 	m.cursor = 0
 	m.markFavorites()
@@ -727,6 +768,7 @@ func (m Model) showRecents() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.view = viewRecents
+	m.browseLevel = 0
 	m.crumb = "recents"
 	m.stations = recents
 	m.cursor = 0
@@ -742,6 +784,80 @@ func (m Model) clearRecents() (tea.Model, tea.Cmd) {
 	m.stations = nil
 	m.cursor = 0
 	m.status = "cleared play history"
+	return m, nil
+}
+
+// axisMenu lists the top-level browse axes shown at browseLevel 0.
+func axisMenu() []domain.Facet {
+	return []domain.Facet{{Name: "By Country"}, {Name: "By Genre"}, {Name: "By Language"}}
+}
+
+// axisForIndex maps an axisMenu cursor position to its domain.Axis.
+func axisForIndex(i int) domain.Axis {
+	switch i {
+	case 1:
+		return domain.AxisTag
+	case 2:
+		return domain.AxisLanguage
+	default:
+		return domain.AxisCountry
+	}
+}
+
+// openBrowse enters the browse menu at level 0 (choose an axis).
+func (m Model) openBrowse() (tea.Model, tea.Cmd) {
+	m.view = viewBrowseMenu
+	m.browseLevel = 0
+	m.facets = axisMenu()
+	m.cursor = 0
+	m.crumb = "browse"
+	m.stations = nil
+	m.hoverIdx = -1
+	return m, nil
+}
+
+// updateBrowseMenu drives the axis menu (level 0) and facet list (level 1).
+func (m Model) updateBrowseMenu(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch k.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "down", "j":
+		if m.cursor < len(m.facets)-1 {
+			m.cursor++
+		}
+		return m, nil
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+		return m, nil
+	case "enter":
+		if m.browseLevel == 0 {
+			m.browseAxis = axisForIndex(m.cursor)
+			m.browseLevel = 1
+			m.facets = nil
+			m.cursor = 0
+			return m.load(facetsCmd(m.dir, m.browseAxis))
+		}
+		if m.cursor < len(m.facets) {
+			value := m.facets[m.cursor].Name
+			m.view = viewBrowse
+			m.browseLevel = 2
+			m.browseValue = value
+			m.browseSort = domain.Sort{}
+			m.crumb = value + " · " + m.browseSort.Label()
+			return m.load(stationsByCmd(m.dir, m.browseAxis, value, m.browseSort))
+		}
+		return m, nil
+	case "esc":
+		if m.browseLevel == 1 {
+			m.browseLevel = 0
+			m.facets = axisMenu()
+			m.cursor = 0
+			return m, nil
+		}
+		return m.goHome()
+	}
 	return m, nil
 }
 
@@ -847,8 +963,10 @@ func (m Model) View() string {
 		s = m.viewAdd()
 	case viewSettings:
 		s = m.viewSettings()
+	case viewBrowseMenu:
+		s = m.viewBrowseMenu()
 	default:
 		s = m.viewList()
 	}
-	return indentLines(s, gutter)
+	return clampWidth(indentLines(s, gutter), m.width)
 }

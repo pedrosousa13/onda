@@ -101,6 +101,64 @@ func (m Model) viewList() string {
 	return b.String()
 }
 
+// viewBrowseMenu renders the browse axis/facet chooser: axis picker at level
+// 0, then the facet list ("countries"/"genres"/"languages") at level 1.
+func (m Model) viewBrowseMenu() string {
+	crumb := "browse"
+	if m.browseLevel != 0 {
+		switch m.browseAxis {
+		case domain.AxisTag:
+			crumb = "genres"
+		case domain.AxisLanguage:
+			crumb = "languages"
+		default:
+			crumb = "countries"
+		}
+	}
+	if m.loading {
+		crumb = m.sp.View() + " loading"
+	}
+
+	var b strings.Builder
+	b.WriteString(m.header(crumb))
+	b.WriteString("\n\n")
+
+	reserved := chromeHeight
+	listRows := m.height - reserved
+	if listRows < 3 {
+		listRows = 3
+	}
+
+	if m.loading && len(m.facets) == 0 {
+		b.WriteString(m.st.Meta.Render("  "+m.sp.View()+" finding facets…") + "\n")
+		for i := 1; i < listRows; i++ {
+			b.WriteString("\n")
+		}
+	} else {
+		start, end := windowBounds(m.cursor, len(m.facets), listRows)
+		for i := start; i < end; i++ {
+			b.WriteString(m.renderFacetRow(m.contentWidth(), i, m.facets[i]) + "\n")
+		}
+		for i := end - start; i < listRows; i++ {
+			b.WriteString("\n")
+		}
+	}
+
+	b.WriteString("\n")
+	b.WriteString(m.nowPanel(m.contentWidth()))
+	b.WriteString("\n")
+	b.WriteString(m.browseMenuFooter())
+	return b.String()
+}
+
+// browseMenuFooter is the key-hint bar for the browse axis/facet chooser.
+func (m Model) browseMenuFooter() string {
+	pairs := [][2]string{
+		{"↑↓", "move"}, {"⏎", "open"}, {"esc", "back"}, {"q", "quit"},
+	}
+	return m.renderFooterPairs(pairs)
+}
+
 // viewHome is the landing screen: now-playing hero on top, then favorites
 // (or a Popular preview when there are none).
 func (m Model) viewHome() string {
@@ -215,7 +273,7 @@ func (m Model) homeFavWindow(listRows int) (dispRecN, favStart, favEnd, favRows 
 func (m Model) homeFooter() string {
 	pairs := [][2]string{
 		{"↑↓", "move"}, {"⏎", "play"}, {"+/-", "vol"}, {"[ ]", "quality"},
-		{"/", "search"}, {"p", "popular"}, {"F", "favorites"}, {"a", "add"},
+		{"/", "search"}, {"b", "browse"}, {"p", "popular"}, {"F", "favorites"}, {"a", "add"},
 		{",", "settings"}, {"q", "quit"},
 	}
 	return m.renderFooterPairs(pairs)
@@ -281,6 +339,12 @@ func (m Model) renderRow(w, idx int, s domain.Station) string {
 			meta += " · " + q
 		}
 	}
+	if s.Votes > 0 {
+		meta += " · " + humanCount(s.Votes) + "♥"
+	}
+	if s.Trend > 0 {
+		meta += " ↑"
+	}
 	fav := m.favKeys[favKey(s)]
 	starPlain := ""
 	if fav {
@@ -288,12 +352,12 @@ func (m Model) renderRow(w, idx int, s domain.Station) string {
 	}
 	rightPlain := meta + starPlain
 
-	avail := w - 2 /*marker*/ - 1 /*gap*/ - lipgloss.Width(rightPlain)
+	avail := w - 2 /*marker*/ - 1 /*gap*/ - dispWidth(rightPlain)
 	if avail < 4 {
 		avail = 4
 	}
-	name := truncate(s.Name, avail)
-	pad := avail - lipgloss.Width(name)
+	name := truncate(sanitizeName(s.Name), avail)
+	pad := avail - dispWidth(name)
 	if pad < 0 {
 		pad = 0
 	}
@@ -315,6 +379,52 @@ func (m Model) renderRow(w, idx int, s domain.Station) string {
 		starS = " " + m.st.Star.Render("★")
 	}
 	return marker + nameS + strings.Repeat(" ", pad) + " " + m.st.Meta.Render(meta) + starS
+}
+
+// humanCount formats a count for compact display: 412→"412", 1200→"1.2k".
+func humanCount(n int) string {
+	if n < 1000 {
+		return strconv.Itoa(n)
+	}
+	return strconv.FormatFloat(float64(n)/1000, 'f', 1, 64) + "k"
+}
+
+// renderFacetRow lays out one browse facet: ▌ Portugal … 412
+func (m Model) renderFacetRow(w, idx int, f domain.Facet) string {
+	sel := idx == m.cursor
+
+	rightPlain := ""
+	if f.Count > 0 {
+		rightPlain = humanCount(f.Count)
+	}
+
+	avail := w - 2 /*marker*/ - 1 /*gap*/ - dispWidth(rightPlain)
+	if avail < 4 {
+		avail = 4
+	}
+	name := truncate(sanitizeName(f.Name), avail)
+	pad := avail - dispWidth(name)
+	if pad < 0 {
+		pad = 0
+	}
+
+	var marker, nameS string
+	switch {
+	case sel:
+		marker = m.st.SelBar.Render("▌ ")
+		nameS = m.st.SelName.Render(name)
+	case idx == m.hoverIdx:
+		marker = m.st.Meta.Render("· ") // mouse hover cue
+		nameS = m.st.Item.Render(name)
+	default:
+		marker = "  "
+		nameS = m.st.Item.Render(name)
+	}
+	right := ""
+	if f.Count > 0 {
+		right = " " + m.st.Meta.Render(rightPlain)
+	}
+	return marker + nameS + strings.Repeat(" ", pad) + right
 }
 
 // nowPanel is the bordered "now playing" hero. Line 1: station + volume,
@@ -398,10 +508,17 @@ func (m Model) volumeBar() string {
 }
 
 func (m Model) footer() string {
+	escPair := [2]string{"esc", "home"}
+	if m.browseLevel == 2 {
+		escPair = [2]string{"esc", "back"}
+	}
 	pairs := [][2]string{
 		{"↑↓", "move"}, {"⏎", "play"}, {"s", "stop"}, {"+/-", "vol"},
 		{"[ ]", "quality"}, {"f", "★"}, {"F", "favs"}, {"/", "search"},
-		{"a", "add"}, {",", "settings"}, {"esc", "home"}, {"q", "quit"},
+		{"b", "browse"}, {"a", "add"}, {",", "settings"}, escPair, {"q", "quit"},
+	}
+	if m.browseLevel == 2 {
+		pairs = append(pairs, [2]string{"o", "sort"}, [2]string{"O", "reverse"})
 	}
 	return m.renderFooterPairs(pairs)
 }
@@ -444,17 +561,137 @@ func windowBounds(cursor, n, rows int) (int, int) {
 	return start, start + rows
 }
 
+// clampWidth hard-caps every line of s to w display columns, so a stray
+// over-wide line can never soft-wrap in the terminal and desync Bubble Tea's
+// line-diff renderer. This is the single authoritative backstop on top of
+// per-row truncation.
+//
+// It measures conservatively (dispWidth) rather than with lipgloss's
+// Unicode-correct width: a complex-script line (Tamil, Devanagari, …) can be
+// DRAWN wider than lipgloss reports, so lipgloss.MaxWidth would let it slip
+// through — exactly the wrap that desyncs the renderer. Over-cutting such a
+// line is the safe direction.
+func clampWidth(s string, w int) string {
+	if w <= 0 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, ln := range lines {
+		lines[i] = clampLine(ln, w)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// clampLine truncates one line to at most w display columns, measured with the
+// conservative dispWidth and skipping ANSI SGR escape sequences (which occupy
+// no columns). If it has to cut, it appends a reset so a severed styled span
+// can't bleed color into the rest of the frame.
+func clampLine(s string, w int) string {
+	var b strings.Builder
+	width := 0
+	runes := []rune(s)
+	cut := false
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		if r == 0x1b { // ESC — copy the whole escape sequence verbatim, uncounted
+			j := i + 1
+			if j < len(runes) && runes[j] == '[' { // CSI: ESC '[' … final byte 0x40–0x7e
+				j++
+				for j < len(runes) && (runes[j] < 0x40 || runes[j] > 0x7e) {
+					j++
+				}
+				if j < len(runes) {
+					j++ // include the final byte
+				}
+			}
+			for k := i; k < j; k++ {
+				b.WriteRune(runes[k])
+			}
+			i = j - 1
+			continue
+		}
+		rw := runeCells(r)
+		if width+rw > w {
+			cut = true
+			break
+		}
+		b.WriteRune(r)
+		width += rw
+	}
+	if cut {
+		b.WriteString("\x1b[0m")
+	}
+	return b.String()
+}
+
+// runeCells is a CONSERVATIVE cell count for one rune: wide glyphs (CJK) keep
+// their 2 cells, but everything else — including combining marks that Unicode
+// (and lipgloss) count as 0 — is treated as at least 1 cell. Terminals that
+// don't shape complex scripts (Tamil, Devanagari, …) render each codepoint in
+// its own cell, so lipgloss's Unicode-correct width UNDER-counts what the
+// terminal actually draws. Over-counting here is the safe direction: a row can
+// never end up wider than its budget, which would soft-wrap and desync Bubble
+// Tea's line-diff renderer.
+func runeCells(r rune) int {
+	if w := lipgloss.Width(string(r)); w > 1 {
+		return w
+	}
+	// Complex scripts (Arabic, Indic, SE-Asian — e.g. Tamil) are drawn with
+	// combining marks and base glyphs that many terminals/fonts render WIDER
+	// than lipgloss's Unicode width reports (verified: a standard grid fits a
+	// Tamil row that a real terminal wraps). A monospace cell can hold at most
+	// 2 columns per codepoint, so reserving 2 here upper-bounds whatever the
+	// terminal actually draws and guarantees the row can't overflow and wrap.
+	if r >= 0x0600 && r < 0x1100 {
+		return 2
+	}
+	return 1
+}
+
+// dispWidth is the conservative display width of s (see runeCells).
+func dispWidth(s string) int {
+	w := 0
+	for _, r := range s {
+		w += runeCells(r)
+	}
+	return w
+}
+
+// sanitizeName strips control characters (tabs, stray newlines from dirty
+// station data) that would otherwise break row layout, and trims the result.
+func sanitizeName(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, s)
+	return strings.TrimSpace(s)
+}
+
 // truncate shortens s to at most w display columns, adding an ellipsis.
+// It measures conservatively (dispWidth) so wide or complex-script glyphs can't
+// produce a row wider than its budget — an overflowing row soft-wraps in the
+// terminal and desyncs Bubble Tea's line-diff renderer.
 func truncate(s string, w int) string {
 	if w <= 0 {
 		return ""
 	}
-	r := []rune(s)
-	if len(r) <= w {
+	if dispWidth(s) <= w {
 		return s
 	}
 	if w == 1 {
 		return "…"
 	}
-	return string(r[:w-1]) + "…"
+	var b strings.Builder
+	width := 0
+	for _, r := range s {
+		rw := runeCells(r)
+		if width+rw > w-1 { // leave one column for the ellipsis
+			break
+		}
+		b.WriteRune(r)
+		width += rw
+	}
+	return b.String() + "…"
 }

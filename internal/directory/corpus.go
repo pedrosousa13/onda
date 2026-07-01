@@ -12,7 +12,7 @@ import (
 
 // corpusSchema is bumped whenever the cached shape or grouping logic changes,
 // so an old dump becomes a miss and is refetched.
-const corpusSchema = "v1"
+const corpusSchema = "v2"
 
 // CorpusStore persists the full station dump on disk (gzip), with a TTL.
 type CorpusStore struct {

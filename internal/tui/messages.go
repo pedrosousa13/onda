@@ -10,6 +10,10 @@ import (
 
 type stationsMsg struct{ stations []domain.Station }
 type errMsg struct{ err error }
+type facetsMsg struct {
+	axis   domain.Axis
+	facets []domain.Facet
+}
 type titleMsg struct{ title string }
 type updateMsg struct{ status update.Status }
 type updateAppliedMsg struct{ err error }
@@ -73,6 +77,39 @@ func initialCmd(d Searcher) tea.Cmd {
 	}
 }
 
+// facetsCmd loads facets for the given axis off the UI goroutine.
+func facetsCmd(d Searcher, axis domain.Axis) tea.Cmd {
+	return func() tea.Msg {
+		var facets []domain.Facet
+		var err error
+
+		switch axis {
+		case domain.AxisTag:
+			facets, err = d.Tags(context.Background())
+		case domain.AxisLanguage:
+			facets, err = d.Languages(context.Background())
+		default:
+			facets, err = d.Countries(context.Background())
+		}
+
+		if err != nil {
+			return errMsg{err: err}
+		}
+		return facetsMsg{axis: axis, facets: facets}
+	}
+}
+
+// stationsByCmd loads stations filtered by axis/value off the UI goroutine.
+func stationsByCmd(d Searcher, axis domain.Axis, value string, srt domain.Sort) tea.Cmd {
+	return func() tea.Msg {
+		stations, err := d.StationsBy(context.Background(), axis, value, srt)
+		if err != nil {
+			return errMsg{err: err}
+		}
+		return stationsMsg{stations: stations}
+	}
+}
+
 // corpusRefreshedMsg reports the result of a background corpus refresh.
 type corpusRefreshedMsg struct {
 	stations []domain.Station
@@ -118,6 +155,10 @@ type Searcher interface {
 	RefreshWithProgress(ctx context.Context, onProgress func(downloaded int64)) ([]domain.Station, error)
 	ClearCorpus() error
 	CorpusSize() (int64, bool)
+	Countries(ctx context.Context) ([]domain.Facet, error)
+	Tags(ctx context.Context) ([]domain.Facet, error)
+	Languages(ctx context.Context) ([]domain.Facet, error)
+	StationsBy(ctx context.Context, axis domain.Axis, value string, srt domain.Sort) ([]domain.Station, error)
 }
 
 // TitleMsg builds a titleMsg from outside the package (used by the app event bridge).

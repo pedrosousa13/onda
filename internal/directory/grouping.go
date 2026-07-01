@@ -21,6 +21,8 @@ type record struct {
 	HLS        bool
 	Votes      int
 	ClickCount int
+	Language   string
+	Trend      int
 }
 
 var (
@@ -108,7 +110,7 @@ func GroupRecords(recs []record) []domain.Station {
 			out = append(out, domain.Station{
 				Name: displayName(r.Name), Country: r.Country, Tags: r.Tags,
 				Homepage: r.Homepage, Lat: r.Lat, Lon: r.Lon,
-				Votes: r.Votes, ClickCount: r.ClickCount,
+				Votes: r.Votes, ClickCount: r.ClickCount, Language: r.Language,
 			})
 			i = idx[k]
 		}
@@ -117,6 +119,9 @@ func GroupRecords(recs []record) []domain.Station {
 		}
 		if r.ClickCount > out[i].ClickCount {
 			out[i].ClickCount = r.ClickCount
+		}
+		if r.Trend > out[i].Trend {
+			out[i].Trend = r.Trend
 		}
 		out[i].Variants = append(out[i].Variants, domain.StreamVariant{
 			URL: r.URL, Codec: r.Codec, Bitrate: r.Bitrate, HLS: r.HLS, Lossless: isHiFi(r),
