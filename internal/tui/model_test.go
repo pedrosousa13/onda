@@ -590,6 +590,100 @@ func TestHomeBannerEnableStartsDownload(t *testing.T) {
 	}
 }
 
+// keyMsg builds a tea.KeyMsg from a key name: "esc", "enter", or a single rune.
+func keyMsg(k string) tea.KeyMsg {
+	switch k {
+	case "esc":
+		return tea.KeyMsg{Type: tea.KeyEsc}
+	case "enter":
+		return tea.KeyMsg{Type: tea.KeyEnter}
+	default:
+		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
+	}
+}
+
+func TestBrowseOpensMenu(t *testing.T) {
+	m := Model{view: viewHome, dir: fakeDir{}}
+	got := mustModel(m.openBrowse())
+	if got.view != viewBrowseMenu {
+		t.Fatalf("openBrowse should switch to viewBrowseMenu, got view %d", got.view)
+	}
+	if got.browseLevel != 0 {
+		t.Fatalf("openBrowse should start at level 0, got %d", got.browseLevel)
+	}
+	if len(got.facets) != 3 {
+		t.Fatalf("openBrowse should offer 3 axis facets, got %d", len(got.facets))
+	}
+}
+
+func TestBrowseFacetsMsgAdvancesToLevel1(t *testing.T) {
+	m := Model{view: viewBrowseMenu, dir: fakeDir{}}
+	facets := []domain.Facet{{Name: "Portugal", Count: 10}, {Name: "Brazil", Count: 8}}
+	got := mustModel(m.Update(facetsMsg{axis: domain.AxisCountry, facets: facets}))
+	if got.browseLevel != 1 {
+		t.Fatalf("facetsMsg should advance to level 1, got %d", got.browseLevel)
+	}
+	if got.browseAxis != domain.AxisCountry {
+		t.Fatalf("facetsMsg should set browseAxis, got %v", got.browseAxis)
+	}
+	if len(got.facets) != 2 {
+		t.Fatalf("facetsMsg should populate facets, got %d", len(got.facets))
+	}
+	if got.loading {
+		t.Fatal("facetsMsg should clear loading")
+	}
+}
+
+func TestBrowseEscPopsFromLevel2(t *testing.T) {
+	m := Model{view: viewBrowse, dir: fakeDir{}, browseLevel: 2, browseAxis: domain.AxisCountry, browseValue: "Portugal"}
+	out, _ := m.handleKey(keyMsg("esc"))
+	got := out.(Model)
+	if got.view != viewBrowseMenu {
+		t.Fatalf("esc from browseLevel 2 should return to viewBrowseMenu, got view %d", got.view)
+	}
+	if got.browseLevel != 1 {
+		t.Fatalf("esc from browseLevel 2 should drop to level 1, got %d", got.browseLevel)
+	}
+}
+
+func TestBrowseSortCycleO(t *testing.T) {
+	m := Model{view: viewBrowse, dir: fakeDir{}, browseLevel: 2, browseAxis: domain.AxisCountry, browseValue: "Portugal"}
+	out, cmd := m.handleKey(keyMsg("o"))
+	got := out.(Model)
+	if got.browseSort.Key != domain.SortName {
+		t.Fatalf("o should cycle sort to SortName, got %v", got.browseSort.Key)
+	}
+	if cmd == nil {
+		t.Fatal("o should return a load command")
+	}
+}
+
+func TestBrowseReverseO(t *testing.T) {
+	m := Model{view: viewBrowse, dir: fakeDir{}, browseLevel: 2, browseAxis: domain.AxisCountry, browseValue: "Portugal"}
+	out, cmd := m.handleKey(keyMsg("O"))
+	got := out.(Model)
+	if !got.browseSort.Flip {
+		t.Fatal("O should flip browseSort.Flip to true")
+	}
+	if cmd == nil {
+		t.Fatal("O should return a load command")
+	}
+}
+
+func TestBrowseSortInertOutsideLevel2(t *testing.T) {
+	m := Model{view: viewBrowse, dir: fakeDir{}, browseLevel: 0}
+	out, _ := m.handleKey(keyMsg("o"))
+	got := out.(Model)
+	if got.browseSort != (domain.Sort{}) {
+		t.Fatalf("o outside browseLevel 2 should be inert, got %+v", got.browseSort)
+	}
+	out, _ = got.handleKey(keyMsg("O"))
+	got = out.(Model)
+	if got.browseSort != (domain.Sort{}) {
+		t.Fatalf("O outside browseLevel 2 should be inert, got %+v", got.browseSort)
+	}
+}
+
 func TestShouldOfferCatalogHint(t *testing.T) {
 	m := Model{offlineCatalog: "ask"}
 	if !m.shouldOfferCatalogHint("raido eins", 0) {
