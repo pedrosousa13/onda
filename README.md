@@ -141,13 +141,15 @@ live); `esc` to go back. Changes are saved immediately.
 
 **Recently played** — when **play history** is on (settings `3`, off by default),
 the stations you play are remembered locally and listed under `r` (newest first,
-de-duplicated). It never leaves your machine; `c` in that view clears it.
+de-duplicated). The latest few also surface as a **recent** section on Home, above
+your favorites. It never leaves your machine; `c` in the recents view clears it.
 
 When a station offers multiple bitrates, `onda` auto-picks per your quality
 setting (default: highest).
 
-On launch you land on **Home** — your now-playing panel plus your favorites (or a
-**Popular** preview, the top-voted stations worldwide, until you've saved any).
+On launch you land on **Home** — your now-playing panel, a **recent** section when
+play history is on, plus your favorites (or a **Popular** preview, the top-voted
+stations worldwide, until you've saved any).
 From anywhere: `esc` returns Home, `p` opens the full Popular list, `F` favorites,
 `/` search. Popular comes from Radio Browser's open ranking — reading it reports
 nothing about you.

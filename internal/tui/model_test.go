@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -47,9 +48,10 @@ type fakeStore struct {
 	savedVolume    int
 	savedNormalize bool
 	recents        []domain.Station
+	favs           []domain.Station
 }
 
-func (f *fakeStore) Favorites() ([]domain.Station, error)    { return nil, nil }
+func (f *fakeStore) Favorites() ([]domain.Station, error)    { return f.favs, nil }
 func (f *fakeStore) AddFavorite(domain.Station) error        { f.adds++; f.isFav = true; return nil }
 func (f *fakeStore) RemoveFavorite(domain.Station) error     { f.removes++; f.isFav = false; return nil }
 func (f *fakeStore) IsFavorite(domain.Station) (bool, error) { return f.isFav, nil }
@@ -358,6 +360,83 @@ func TestClearRecentsEmptiesView(t *testing.T) {
 	got := mustModel(m.clearRecents())
 	if len(got.stations) != 0 || len(fs.recents) != 0 {
 		t.Fatalf("clear should empty recents, got view=%d store=%d", len(got.stations), len(fs.recents))
+	}
+}
+
+func TestHomeSeedsRecentsAboveFavorites(t *testing.T) {
+	fs := &fakeStore{
+		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}, {Name: "FIP", Homepage: "fip.fr"}},
+		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
+	}
+	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	if got := m.homeRecentsN(); got != 2 {
+		t.Fatalf("homeRecentsN = %d, want 2", got)
+	}
+	if len(m.stations) != 3 {
+		t.Fatalf("stations = %d, want 3 (2 recents + 1 favorite)", len(m.stations))
+	}
+	if m.stations[0].Name != "KEXP" || m.stations[2].Name != "NTS" {
+		t.Fatalf("recents should lead, favorites follow, got %s…%s", m.stations[0].Name, m.stations[2].Name)
+	}
+}
+
+func TestHomeNoRecentsWhenHistoryOff(t *testing.T) {
+	fs := &fakeStore{
+		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}},
+		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
+	}
+	m := New(nil, nil, fs, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	if got := m.homeRecentsN(); got != 0 {
+		t.Fatalf("history off → homeRecentsN = %d, want 0", got)
+	}
+	if len(m.stations) != 1 || m.stations[0].Name != "NTS" {
+		t.Fatalf("history off → home should show favorites only, got %+v", m.stations)
+	}
+}
+
+func TestHomeRecentsCappedAtFive(t *testing.T) {
+	var rec []domain.Station
+	for i := 0; i < 7; i++ {
+		rec = append(rec, domain.Station{Name: fmt.Sprintf("S%d", i), Homepage: fmt.Sprintf("s%d", i)})
+	}
+	fs := &fakeStore{recents: rec, favs: []domain.Station{{Name: "NTS"}}}
+	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	if got := m.homeRecentsN(); got != homeRecentsCap {
+		t.Fatalf("home recents = %d, want cap %d", got, homeRecentsCap)
+	}
+}
+
+func TestHomeRendersRecentLabel(t *testing.T) {
+	fs := &fakeStore{
+		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}},
+		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
+	}
+	on := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	on.width, on.height = 76, 24
+	if !strings.Contains(on.View(), "recent") {
+		t.Fatal("home with history on should render a 'recent' section label")
+	}
+
+	off := New(nil, nil, fs, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	off.width, off.height = 76, 24
+	if strings.Contains(off.View(), "recent") {
+		t.Fatal("home with history off should not render a 'recent' section label")
+	}
+}
+
+func TestHomeStationAtYMapsBothSections(t *testing.T) {
+	fs := &fakeStore{
+		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}, {Name: "FIP", Homepage: "fip.fr"}},
+		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
+	}
+	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m.width, m.height = 76, 24
+	// Layout: "recent" label at y=10, recents rows at y=11,12, "favorites" at y=13, first fav at y=14.
+	if got := m.stationAtY(11); got != 0 {
+		t.Fatalf("y=11 should be first recent (idx 0), got %d", got)
+	}
+	if got := m.stationAtY(14); got != 2 {
+		t.Fatalf("y=14 should be first favorite (idx 2), got %d", got)
 	}
 }
 

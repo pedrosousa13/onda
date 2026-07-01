@@ -37,6 +37,9 @@ const (
 // connectTimeout marks a play attempt as failed if it never starts playing.
 const connectTimeout = 12 * time.Second
 
+// homeRecentsCap bounds the "recent" section shown above favorites on Home.
+const homeRecentsCap = 5
+
 type Player interface {
 	Play(url string) error
 	Stop() error
@@ -90,6 +93,7 @@ type Model struct {
 	width       int
 	height      int
 	favKeys     map[string]bool
+	homeRecents []domain.Station // leading "recent" section on Home (opt-in, capped)
 	sp          spinner.Model
 	loading     bool
 	crumb       string
@@ -134,12 +138,17 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 		liveSearch: liveSearch,
 		search:     search, addName: name, addURL: url, addBr: br,
 	}
-	// Seed Home with favorites; if there are none, Init fetches a Popular preview.
+	// Seed Home: opt-in recents on top, then favorites; if there are no
+	// favorites, Init fetches a Popular preview (recents stay pinned on top).
 	if st != nil {
-		if favs, err := st.Favorites(); err == nil && len(favs) > 0 {
-			m.stations = favs
-			m.markFavorites()
-		} else {
+		m.homeRecents = m.recentsForHome()
+		favs, err := st.Favorites()
+		if err != nil {
+			favs = nil
+		}
+		m.stations = append(append([]domain.Station{}, m.homeRecents...), favs...)
+		m.markFavorites()
+		if len(favs) == 0 {
 			m.loading = true
 		}
 	} else {
@@ -175,7 +184,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case stationsMsg:
 		m.loading = false
-		m.stations = msg.stations
+		if m.view == viewHome {
+			// Home's Popular preview loads async; keep the recent section pinned on top.
+			m.stations = append(append([]domain.Station{}, m.homeRecents...), msg.stations...)
+		} else {
+			m.stations = msg.stations
+		}
 		m.cursor = 0
 		m.markFavorites()
 		return m, nil
@@ -284,6 +298,26 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 // stationAtY maps a screen row to a visible station index, or -1 if the row
 // isn't over a station. Geometry mirrors viewList/viewHome layout.
 func (m Model) stationAtY(y int) int {
+	// Home with a pinned "recent" section on top: two sub-lists, distinct geometry.
+	if recN := m.homeRecentsN(); recN > 0 {
+		listRows := m.height - 14
+		if listRows < 3 {
+			listRows = 3
+		}
+		dispRecN, favStart, favEnd, _ := m.homeFavWindow(listRows)
+		const recStartY = 11 // header(2)+blank(1)+panel(5)+hint(1)+blank(1)+recent-label(1)
+		if y >= recStartY && y < recStartY+dispRecN {
+			return y - recStartY
+		}
+		favRowStartY := recStartY + dispRecN + 1 // +1 for the favorites/popular label
+		if j := favStart + (y - favRowStartY); y >= favRowStartY && j >= favStart && j < favEnd {
+			if idx := recN + j; idx < len(m.stations) {
+				return idx
+			}
+		}
+		return -1
+	}
+
 	rowStartY := 3 // header(2) + blank(1)
 	listRows := m.height - chromeHeight
 	if m.view == viewHome {
@@ -386,19 +420,53 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// goHome returns to the Home view: favorites if any, else a Popular preview.
+// goHome returns to the Home view: opt-in recents on top, then favorites if any,
+// else a Popular preview.
 func (m Model) goHome() (tea.Model, tea.Cmd) {
 	m.view = viewHome
 	m.crumb = "home"
+	m.cursor = 0
+	m.homeRecents = m.recentsForHome()
 	if m.store != nil {
 		if favs, err := m.store.Favorites(); err == nil && len(favs) > 0 {
-			m.stations = favs
-			m.cursor = 0
+			m.stations = append(append([]domain.Station{}, m.homeRecents...), favs...)
 			m.markFavorites()
 			return m, nil
 		}
 	}
-	return m.load(popularCmd(m.dir)) // no favorites → Popular preview
+	// No favorites → keep recents pinned and load a Popular preview for the rest.
+	m.stations = append([]domain.Station{}, m.homeRecents...)
+	m.markFavorites()
+	return m.load(popularCmd(m.dir))
+}
+
+// recentsForHome returns the capped, newest-first play history shown as the
+// "recent" section on Home, or nil when the user hasn't opted into history.
+func (m Model) recentsForHome() []domain.Station {
+	if !m.history || m.store == nil {
+		return nil
+	}
+	rec, err := m.store.Recents()
+	if err != nil || len(rec) == 0 {
+		return nil
+	}
+	if len(rec) > homeRecentsCap {
+		rec = rec[:homeRecentsCap]
+	}
+	return rec
+}
+
+// homeRecentsN is the number of leading rows in m.stations that make up the
+// Home "recent" section. Zero unless we're on Home with recorded history.
+func (m Model) homeRecentsN() int {
+	if m.view != viewHome {
+		return 0
+	}
+	n := len(m.homeRecents)
+	if n > len(m.stations) {
+		n = len(m.stations)
+	}
+	return n
 }
 
 func (m Model) playSelected() (tea.Model, tea.Cmd) {
