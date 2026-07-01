@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/pedrosousa13/onda/compare/v1.3.0...v1.4.0) (2026-07-01)
+
+
+### Features
+
+* loudness normalization to even out station volume ([#28](https://github.com/pedrosousa13/onda/issues/28)) ([90351d4](https://github.com/pedrosousa13/onda/commit/90351d4dc5aa6fb026cc4b0d6dc38056345eb6e9))
+* **tui:** recently-played view with opt-in local history ([#25](https://github.com/pedrosousa13/onda/issues/25)) ([052ad3b](https://github.com/pedrosousa13/onda/commit/052ad3b6eaf67e9e1e78a459fc658e47423d90e3))
+
 ## [1.3.0](https://github.com/pedrosousa13/onda/compare/v1.2.0...v1.3.0) (2026-06-30)
 
 
