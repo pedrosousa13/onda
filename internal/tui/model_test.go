@@ -112,6 +112,15 @@ func TestSettingsToggleNormalize(t *testing.T) {
 	}
 }
 
+func TestDisableCatalogPersistsOff(t *testing.T) {
+	fs := &fakeStore{}
+	m := Model{offlineCatalog: "on", store: fs}
+	m2 := m.disableCatalog()
+	if m2.offlineCatalog != "off" || fs.savedCatalog != "off" {
+		t.Fatalf("expected off+persisted, got %q / %q", m2.offlineCatalog, fs.savedCatalog)
+	}
+}
+
 func TestNewRestoresVolume(t *testing.T) {
 	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 42, false, false, "ask", "1.0.0", t.TempDir())
 	if m.volume != 42 {

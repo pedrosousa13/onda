@@ -214,6 +214,16 @@ func (m Model) enableCatalog() (Model, tea.Cmd) {
 	return m.startRefresh()
 }
 
+// disableCatalog turns the offline catalog off and persists the choice; it does
+// not delete any cached dump (the user can remove the file by hand).
+func (m Model) disableCatalog() Model {
+	m.offlineCatalog = "off"
+	if m.store != nil {
+		_ = m.store.SaveOfflineCatalog("off")
+	}
+	return m
+}
+
 // bannerVisible reports whether the first-launch offline-catalog offer should
 // be shown: only on Home, only while consent is still undecided, and only
 // until the user dismisses it with "not now" for this session.

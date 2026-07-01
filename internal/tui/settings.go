@@ -50,6 +50,12 @@ func (m Model) updateSettings(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.store != nil {
 			_ = m.store.SaveNormalize(m.normalize)
 		}
+	case "8":
+		if m.offlineCatalog == "on" {
+			m = m.disableCatalog()
+		} else {
+			return m.enableCatalog()
+		}
 	}
 	return m, nil
 }
@@ -74,7 +80,13 @@ func (m Model) viewSettings() string {
 	b.WriteString(row("4", "theme", m.themeName) + "\n")
 	b.WriteString(row("5", "check for updates", fmt.Sprintf("%v", m.updateCheck)) + "\n")
 	b.WriteString(row("6", "live search", fmt.Sprintf("%v", m.liveSearch)) + "\n")
-	b.WriteString(row("7", "loudness normalization", fmt.Sprintf("%v", m.normalize)) + "\n\n")
+	b.WriteString(row("7", "loudness normalization", fmt.Sprintf("%v", m.normalize)) + "\n")
+
+	catalogState := "off"
+	if m.offlineCatalog == "on" {
+		catalogState = "on"
+	}
+	b.WriteString(row("8", "offline catalog", fmt.Sprintf("%s (%s)", catalogState, catalogSizeHint)) + "\n\n")
 
 	b.WriteString(m.st.Help.Render("  press a number to change · ") +
 		m.st.Key.Render("esc") + m.st.Help.Render(" back") + "\n")
