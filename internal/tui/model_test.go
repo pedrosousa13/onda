@@ -530,3 +530,21 @@ func TestHomeBannerEnableStartsDownload(t *testing.T) {
 		t.Fatal("download not started")
 	}
 }
+
+func TestShouldOfferCatalogHint(t *testing.T) {
+	m := Model{offlineCatalog: "ask"}
+	if !m.shouldOfferCatalogHint("raido eins", 0) {
+		t.Fatal("want hint: ask + real query + zero results")
+	}
+	m.offlineCatalog = "on"
+	if m.shouldOfferCatalogHint("raido eins", 0) {
+		t.Fatal("no hint once catalog is on")
+	}
+	m.offlineCatalog = "ask"
+	if m.shouldOfferCatalogHint("raido eins", 5) {
+		t.Fatal("no hint when there are results")
+	}
+	if m.shouldOfferCatalogHint("r", 0) {
+		t.Fatal("no hint for sub-minSearchLen queries")
+	}
+}

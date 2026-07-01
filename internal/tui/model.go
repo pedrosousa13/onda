@@ -221,6 +221,14 @@ func (m Model) bannerVisible() bool {
 	return m.view == viewHome && m.offlineCatalog == "ask" && !m.bannerDismissed
 }
 
+// shouldOfferCatalogHint reports whether a weak search result should offer to
+// enable the offline catalog: only while consent is undecided, only for a
+// real query that still found nothing.
+func (m Model) shouldOfferCatalogHint(query string, results int) bool {
+	return m.offlineCatalog != "on" && results == 0 &&
+		len([]rune(strings.TrimSpace(query))) >= minSearchLen
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
