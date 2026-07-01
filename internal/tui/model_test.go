@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -22,7 +23,44 @@ func (f *fakePlayer) Stop() error                { return nil }
 func (f *fakePlayer) Volume(int) error           { return nil }
 func (f *fakePlayer) SetNormalize(on bool) error { f.normalize = on; return nil }
 
+// stubDir satisfies Searcher with no-op local/network calls.
+type stubDir struct{}
+
+func (stubDir) Search(context.Context, string) ([]domain.Station, error) { return nil, nil }
+func (stubDir) Popular(context.Context) ([]domain.Station, error)        { return nil, nil }
+func (stubDir) Initial(context.Context) ([]domain.Station, error)        { return nil, nil }
+func (stubDir) Refresh(context.Context) ([]domain.Station, error)        { return nil, nil }
+func (stubDir) RefreshWithProgress(context.Context, func(int64)) ([]domain.Station, error) {
+	return nil, nil
+}
+func (stubDir) ClearCorpus() error        { return nil }
+func (stubDir) CorpusSize() (int64, bool) { return 0, false }
+
 var errSample = errors.New("boom")
+
+func TestCorpusRefreshedKeepsFavoritesOnHome(t *testing.T) {
+	favs := []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}}
+	m := Model{view: viewHome, store: &fakeStore{favs: favs}, dir: stubDir{}}
+	m.markFavorites() // favKeys now non-empty (user has favorites)
+	m.stations = favs
+	out, _ := m.Update(corpusRefreshedMsg{stations: []domain.Station{{Name: "PopularOnly"}}})
+	got := out.(Model)
+	if got.loading {
+		t.Fatal("refresh must not reload/clobber the favorites list on Home")
+	}
+	if len(got.stations) != 1 || got.stations[0].Name != "KEXP" {
+		t.Fatalf("favorites should be preserved on Home, got %+v", got.stations)
+	}
+}
+
+func TestCorpusRefreshedReloadsPopularWhenNoFavorites(t *testing.T) {
+	m := Model{view: viewHome, store: &fakeStore{}, dir: stubDir{}} // no favorites
+	m.markFavorites()
+	out, cmd := m.Update(corpusRefreshedMsg{stations: nil})
+	if !out.(Model).loading || cmd == nil {
+		t.Fatal("with no favorites, Home should reload the vote-sorted popular preview")
+	}
+}
 
 func TestUpdateStationsMsgPopulatesList(t *testing.T) {
 	m := Model{}
@@ -49,6 +87,7 @@ type fakeStore struct {
 	savedNormalize bool
 	recents        []domain.Station
 	favs           []domain.Station
+	savedCatalog   string
 }
 
 func (f *fakeStore) Favorites() ([]domain.Station, error)    { return f.favs, nil }
@@ -60,6 +99,7 @@ func (f *fakeStore) SaveQuality(domain.QualityPref) error    { return nil }
 func (f *fakeStore) SaveTracking(string) error               { return nil }
 func (f *fakeStore) SaveHistory(bool) error                  { return nil }
 func (f *fakeStore) SaveTheme(string) error                  { return nil }
+func (f *fakeStore) SaveOfflineCatalog(v string) error       { f.savedCatalog = v; return nil }
 func (f *fakeStore) SaveUpdateCheck(bool) error              { return nil }
 func (f *fakeStore) SaveLiveSearch(bool) error               { return nil }
 func (f *fakeStore) SaveVolume(v int) error                  { f.savedVolume = v; return nil }
@@ -81,7 +121,7 @@ func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 }
 
 func TestNewStartsOnHome(t *testing.T) {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, false, "ask", "1.0.0", t.TempDir())
 	if m.view != viewHome {
 		t.Fatalf("New should start on Home, got view %d", m.view)
 	}
@@ -98,13 +138,34 @@ func TestSettingsToggleNormalize(t *testing.T) {
 	}
 }
 
+func TestDisableCatalogPersistsOff(t *testing.T) {
+	fs := &fakeStore{}
+	m := Model{offlineCatalog: "on", store: fs}
+	m2 := m.disableCatalog()
+	if m2.offlineCatalog != "off" || fs.savedCatalog != "off" {
+		t.Fatalf("expected off+persisted, got %q / %q", m2.offlineCatalog, fs.savedCatalog)
+	}
+}
+
+func TestClearCatalogCacheDisablesAndClears(t *testing.T) {
+	fs := &fakeStore{}
+	m := Model{view: viewSettings, offlineCatalog: "on", store: fs, dir: stubDir{}}
+	got := mustModel(m.updateSettings(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("9")}))
+	if got.offlineCatalog != "off" || fs.savedCatalog != "off" {
+		t.Fatalf("clear should set off+persist, got %q / %q", got.offlineCatalog, fs.savedCatalog)
+	}
+	if got.status == "" {
+		t.Fatal("expected a status message after clearing")
+	}
+}
+
 func TestNewRestoresVolume(t *testing.T) {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 42, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 42, false, false, "ask", "1.0.0", t.TempDir())
 	if m.volume != 42 {
 		t.Fatalf("New should restore the saved volume, got %d", m.volume)
 	}
 	// Out-of-range values from a hand-edited config are clamped.
-	m = New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 150, false, "1.0.0", t.TempDir())
+	m = New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 150, false, false, "ask", "1.0.0", t.TempDir())
 	if m.volume != 100 {
 		t.Fatalf("New should clamp volume to 100, got %d", m.volume)
 	}
@@ -368,7 +429,7 @@ func TestHomeSeedsRecentsAboveFavorites(t *testing.T) {
 		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}, {Name: "FIP", Homepage: "fip.fr"}},
 		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
 	}
-	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, false, "ask", "1.0.0", t.TempDir())
 	if got := m.homeRecentsN(); got != 2 {
 		t.Fatalf("homeRecentsN = %d, want 2", got)
 	}
@@ -385,7 +446,7 @@ func TestHomeNoRecentsWhenHistoryOff(t *testing.T) {
 		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}},
 		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
 	}
-	m := New(nil, nil, fs, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, fs, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, false, "ask", "1.0.0", t.TempDir())
 	if got := m.homeRecentsN(); got != 0 {
 		t.Fatalf("history off → homeRecentsN = %d, want 0", got)
 	}
@@ -400,7 +461,7 @@ func TestHomeRecentsCappedAtFive(t *testing.T) {
 		rec = append(rec, domain.Station{Name: fmt.Sprintf("S%d", i), Homepage: fmt.Sprintf("s%d", i)})
 	}
 	fs := &fakeStore{recents: rec, favs: []domain.Station{{Name: "NTS"}}}
-	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, false, "ask", "1.0.0", t.TempDir())
 	if got := m.homeRecentsN(); got != homeRecentsCap {
 		t.Fatalf("home recents = %d, want cap %d", got, homeRecentsCap)
 	}
@@ -411,13 +472,13 @@ func TestHomeRendersRecentLabel(t *testing.T) {
 		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}},
 		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
 	}
-	on := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	on := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, false, "ask", "1.0.0", t.TempDir())
 	on.width, on.height = 76, 24
 	if !strings.Contains(on.View(), "recent") {
 		t.Fatal("home with history on should render a 'recent' section label")
 	}
 
-	off := New(nil, nil, fs, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	off := New(nil, nil, fs, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, false, "ask", "1.0.0", t.TempDir())
 	off.width, off.height = 76, 24
 	if strings.Contains(off.View(), "recent") {
 		t.Fatal("home with history off should not render a 'recent' section label")
@@ -429,7 +490,7 @@ func TestHomeStationAtYMapsBothSections(t *testing.T) {
 		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}, {Name: "FIP", Homepage: "fip.fr"}},
 		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
 	}
-	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, false, "ask", "1.0.0", t.TempDir())
 	m.width, m.height = 76, 24
 	// Layout: "recent" label at y=10, recents rows at y=11,12, "favorites" at y=13, first fav at y=14.
 	if got := m.stationAtY(11); got != 0 {
@@ -445,5 +506,92 @@ func TestSettingsCycleQuality(t *testing.T) {
 	m = m.cycleQuality()
 	if m.quality == domain.QualityHighest {
 		t.Fatal("cycleQuality should change the value")
+	}
+}
+
+func TestInitDoesNotDownloadWhenConsentAsk(t *testing.T) {
+	m := Model{offlineCatalog: "ask", needsRefresh: false} // app gates: ask => needsRefresh false
+	_ = m.Init()
+	if m.refreshing {
+		t.Fatal("must not auto-download when consent is 'ask'")
+	}
+}
+
+func TestRKeyTriggersRefresh(t *testing.T) {
+	m := Model{view: viewBrowse, dir: stubDir{}}
+	out, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+	got := out.(Model)
+	if !got.refreshing || cmd == nil {
+		t.Fatalf("R should start a refresh: refreshing=%v cmd=%v", got.refreshing, cmd)
+	}
+}
+
+func TestCorpusRefreshedClearsRefreshingAndRepullsPreview(t *testing.T) {
+	m := Model{view: viewBrowse, crumb: "popular", refreshing: true, dir: stubDir{}}
+	out, cmd := m.Update(corpusRefreshedMsg{stations: make([]domain.Station, 10)})
+	got := out.(Model)
+	if got.refreshing {
+		t.Fatal("refresh complete should clear the refreshing indicator")
+	}
+	if cmd == nil {
+		t.Fatal("on the popular preview, refresh-complete should re-pull the list")
+	}
+}
+
+func TestCorpusRefreshedDoesNotClobberSearch(t *testing.T) {
+	m := Model{view: viewBrowse, crumb: "“jazz”", refreshing: true,
+		stations: make([]domain.Station, 4), dir: stubDir{}}
+	got := mustModel(m.Update(corpusRefreshedMsg{stations: make([]domain.Station, 10)}))
+	if got.refreshing {
+		t.Fatal("refreshing should clear")
+	}
+	if len(got.stations) != 4 {
+		t.Fatalf("search results must be preserved, got %d", len(got.stations))
+	}
+}
+
+func TestCorpusProgressUpdatesThenCompletes(t *testing.T) {
+	m := Model{refreshing: true, progress: make(chan int64, 1)}
+	m2, _ := m.Update(corpusProgressMsg{downloaded: 1024})
+	if got := m2.(Model).downloaded; got != 1024 {
+		t.Fatalf("downloaded = %d, want 1024", got)
+	}
+	m3, _ := m2.(Model).Update(corpusRefreshedMsg{stations: []domain.Station{{Name: "X"}}})
+	if m3.(Model).refreshing {
+		t.Fatal("refreshing should be false after completion")
+	}
+}
+
+func TestHomeBannerEnableStartsDownload(t *testing.T) {
+	fs := &fakeStore{}
+	m := Model{view: viewHome, offlineCatalog: "ask", store: fs, dir: stubDir{}}
+	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	mm := m2.(Model)
+	if mm.offlineCatalog != "on" {
+		t.Fatalf("consent = %q, want on", mm.offlineCatalog)
+	}
+	if fs.savedCatalog != "on" {
+		t.Fatal("consent not persisted")
+	}
+	if !mm.refreshing {
+		t.Fatal("download not started")
+	}
+}
+
+func TestShouldOfferCatalogHint(t *testing.T) {
+	m := Model{offlineCatalog: "ask"}
+	if !m.shouldOfferCatalogHint("raido eins", 0) {
+		t.Fatal("want hint: ask + real query + zero results")
+	}
+	m.offlineCatalog = "on"
+	if m.shouldOfferCatalogHint("raido eins", 0) {
+		t.Fatal("no hint once catalog is on")
+	}
+	m.offlineCatalog = "ask"
+	if m.shouldOfferCatalogHint("raido eins", 5) {
+		t.Fatal("no hint when there are results")
+	}
+	if m.shouldOfferCatalogHint("r", 0) {
+		t.Fatal("no hint for sub-minSearchLen queries")
 	}
 }

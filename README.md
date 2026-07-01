@@ -24,12 +24,17 @@ or rebroadcast by us. (*onda* is "wave" in Portuguese, Spanish, and Italian.)
 - **Public-domain data** — station data comes from the public-domain
   [Radio Browser](https://www.radio-browser.info) project plus a bundled CC0 list.
 
-Streaming inherently exposes your IP to the broadcaster, and searches — including
-the as-you-type queries sent while you search — go to Radio Browser mirrors, the
-same as any internet-radio app. `onda` debounces those queries (one per typing
-pause, not per keystroke) and tells you this on first run. Prefer not to send
-anything as you type? Turn **live search** off in settings and `onda` queries
-only when you press <kbd>⏎</kbd>.
+Streaming inherently exposes your IP to the broadcaster, the same as any
+internet-radio app. Search is **opt-in local**. By default `onda` searches
+Radio Browser over the network as you type (debounced — one query per typing
+pause), exactly like other clients. If you opt in — from the first-run prompt,
+the hint shown after a search finds nothing, or Settings — `onda` downloads the
+full public station directory once (~30 MB, in the background with a live
+progress readout) and from then on searches that **local** copy: it becomes
+typo-tolerant (so `raido eins` still finds `Radio Eins`) and your queries are
+**not** sent anywhere as you type. The local list refreshes about once a week,
+or on demand with `R`. Turn it off anytime in Settings; the cached list is a
+plain file you can delete.
 
 ## Install
 
@@ -107,6 +112,7 @@ onda
 | `r` | Recently played (when play history is on) |
 | `c` | Clear play history (in the recents view) |
 | `p` | Popular (top-voted worldwide) |
+| `R` | Refresh the local station list from Radio Browser |
 | `esc` | Back to Home |
 | `/` | Search |
 | `a` | Add a custom station |
@@ -119,11 +125,21 @@ onda
 clicking the selected station again plays it. Hovering marks the row under the
 cursor. (Keyboard remains fully supported; the mouse is optional.)
 
-**Search** — results appear **as you type** — no need to press enter. The query
-is sent shortly after you pause typing (debounced). Use `↑`/`↓` to pick a result
-and `enter` to play it; `esc` cancels. Matches **name, country, and tags**
-(queried in parallel) and ranks results best-match-first with light fuzzy/typo
-tolerance.
+**Search** — results appear **as you type**, instantly, from a local copy of the
+directory (no network round-trip, works offline). Use `↑`/`↓` to pick a result
+and `enter` to play it; `esc` cancels.
+
+One search box covers **station name, country, and genre/tags** — there are no
+prefixes or modes, just type what you know:
+
+- **By name** — `kexp`, `radio eins`
+- **By country** — `japan`, `portugal` (country name, as Radio Browser labels it)
+- **By genre / tag** — `jazz`, `lo-fi`, `techno`, `news`
+
+Results are ranked best-match-first across all three fields, and small typos are
+tolerated — `raido eins` still finds **Radio Eins**. The local list refreshes
+from Radio Browser automatically about once a week; press `R` (in Home or a
+browse list) to refresh it on demand.
 
 While a stream connects, the now-playing panel shows **`connecting…`**, then the
 song title once audio starts — or a clear message if the stream can't be reached.
@@ -183,9 +199,10 @@ Everything onda persists lives in this one directory in plain TOML/JSON, so you
 can symlink or sync it with your dotfiles to carry your config and favorites
 across machines.
 
-Cached Radio Browser results live under your OS cache directory
-(`os.UserCacheDir`, e.g. `~/.cache/onda/` on Linux) with a 24-hour TTL; stale
-cache is still served when you're offline. The update check caches its result
+The local station list lives under your OS cache directory (`os.UserCacheDir`,
+e.g. `~/.cache/onda/` on Linux) as a gzipped snapshot of the Radio Browser
+directory. onda searches it locally and refreshes it from Radio Browser only when
+it's older than **7 days** or you press `R`. The update check caches its result
 there too (`update-cache.json`), so onda hits GitHub at most once a day.
 
 Defaults are privacy-first: quality `highest`, tracking `never`, history disabled.

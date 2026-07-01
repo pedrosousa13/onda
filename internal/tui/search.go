@@ -49,6 +49,11 @@ func (m Model) updateSearch(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.playSelected()
 		}
 		return m.load(searchCmd(m.dir, q))
+	case "ctrl+o":
+		if m.shouldOfferCatalogHint(strings.TrimSpace(m.search.Value()), len(m.stations)) {
+			return m.enableCatalog()
+		}
+		return m, nil
 	}
 	var cmd tea.Cmd
 	m.search, cmd = m.search.Update(k)
@@ -82,6 +87,10 @@ func (m Model) viewSearch() string {
 		b.WriteString(m.st.Meta.Render("  "+m.sp.View()+" searching…") + "\n")
 	case len(m.stations) == 0:
 		b.WriteString(m.st.Meta.Render("  no matches for “"+q+"”") + "\n")
+		if m.shouldOfferCatalogHint(q, len(m.stations)) {
+			b.WriteString(m.st.Meta.Render("  ⓘ enable the full catalog to catch typos — "+catalogSizeHint+"  ") +
+				m.st.Key.Render("[ctrl+o]") + "\n")
+		}
 	default:
 		const preview = 8
 		start, end := windowBounds(m.cursor, len(m.stations), preview)

@@ -40,6 +40,10 @@ const connectTimeout = 12 * time.Second
 // homeRecentsCap bounds the "recent" section shown above favorites on Home.
 const homeRecentsCap = 5
 
+// catalogSizeHint is the approximate download size shown in the offer UI.
+// (Task 10 replaces this with a measured figure.)
+const catalogSizeHint = "~30 MB"
+
 type Player interface {
 	Play(url string) error
 	Stop() error
@@ -58,6 +62,7 @@ type Store interface {
 	SaveTracking(string) error
 	SaveHistory(bool) error
 	SaveTheme(string) error
+	SaveOfflineCatalog(string) error
 	SaveUpdateCheck(bool) error
 	SaveLiveSearch(bool) error
 	SaveVolume(int) error
@@ -68,35 +73,41 @@ type Store interface {
 }
 
 type Model struct {
-	dir         Searcher
-	player      Player
-	store       Store
-	view        view
-	stations    []domain.Station
-	cursor      int
-	hoverIdx    int // station row under the mouse, -1 if none
-	status      string
-	nowTitle    string
-	playing     domain.Station
-	varIdx      int // index into playing.Variants currently streaming
-	isPlaying   bool
-	phase       playbackPhase
-	playErr     string // message shown when phase == phaseFailed
-	playAttempt int    // monotonic; guards stale connect timeouts
-	quality     domain.QualityPref
-	tracking    string
-	history     bool
-	volume      int
-	normalize   bool
-	themeName   string
-	st          Styles
-	width       int
-	height      int
-	favKeys     map[string]bool
-	homeRecents []domain.Station // leading "recent" section on Home (opt-in, capped)
-	sp          spinner.Model
-	loading     bool
-	crumb       string
+	dir             Searcher
+	player          Player
+	store           Store
+	view            view
+	stations        []domain.Station
+	cursor          int
+	hoverIdx        int // station row under the mouse, -1 if none
+	status          string
+	nowTitle        string
+	playing         domain.Station
+	varIdx          int // index into playing.Variants currently streaming
+	isPlaying       bool
+	phase           playbackPhase
+	playErr         string // message shown when phase == phaseFailed
+	playAttempt     int    // monotonic; guards stale connect timeouts
+	quality         domain.QualityPref
+	tracking        string
+	history         bool
+	volume          int
+	normalize       bool
+	themeName       string
+	st              Styles
+	width           int
+	height          int
+	favKeys         map[string]bool
+	homeRecents     []domain.Station // leading "recent" section on Home (opt-in, capped)
+	sp              spinner.Model
+	loading         bool
+	refreshing      bool
+	needsRefresh    bool
+	offlineCatalog  string // consent: ask|on|off — gates auto-download in Init
+	bannerDismissed bool   // "not now" on the Home offline-catalog banner this session
+	downloaded      int64
+	progress        chan int64
+	crumb           string
 
 	update         update.Status
 	updateDismiss  bool
@@ -114,7 +125,7 @@ type Model struct {
 	addFocus   int // 0=name, 1=url, 2=bitrate
 }
 
-func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck, liveSearch bool, volume int, normalize bool, version, updateCacheDir string) Model {
+func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck, liveSearch bool, volume int, normalize bool, needsRefresh bool, consent string, version, updateCacheDir string) Model {
 	search := textinput.New()
 	search.Placeholder = "search stations, country, or genre…"
 	name := textinput.New()
@@ -134,6 +145,7 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 		width: 80, height: 24, favKeys: map[string]bool{},
 		hoverIdx: -1,
 		sp:       sp, view: viewHome, crumb: "home",
+		needsRefresh: needsRefresh, refreshing: needsRefresh, offlineCatalog: consent,
 		updateCheck: updateCheck, version: version, updateCacheDir: updateCacheDir,
 		liveSearch: liveSearch,
 		search:     search, addName: name, addURL: url, addBr: br,
@@ -154,13 +166,21 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 	} else {
 		m.loading = true
 	}
+	// Created here, not in Init(): Init has a value receiver, so it can't
+	// persist a channel onto the running model. The R-key path uses startRefresh().
+	if needsRefresh {
+		m.progress = make(chan int64, 1)
+	}
 	return m
 }
 
 func (m Model) Init() tea.Cmd {
 	cmds := []tea.Cmd{}
-	if m.loading { // no favorites yet → load a Popular preview for Home
-		cmds = append(cmds, popularCmd(m.dir), m.sp.Tick)
+	if m.loading { // no favorites yet → load an initial preview for Home
+		cmds = append(cmds, initialCmd(m.dir), m.sp.Tick)
+	}
+	if m.needsRefresh { // refresh the corpus in the background
+		cmds = append(cmds, refreshWithProgressCmd(m.dir, m.progress), listenProgressCmd(m.progress), m.sp.Tick)
 	}
 	if m.updateCheck && m.version != "" && !strings.HasSuffix(m.version, "-dev") {
 		cmds = append(cmds, updateCheckCmd(m.version, m.updateCacheDir))
@@ -175,6 +195,67 @@ func (m Model) Init() tea.Cmd {
 func (m Model) load(cmd tea.Cmd) (tea.Model, tea.Cmd) {
 	m.loading = true
 	return m, tea.Batch(cmd, m.sp.Tick)
+}
+
+// startRefresh kicks off a background corpus download with live byte progress.
+// It no-ops if a download is already in flight, so rapid enable/toggle (banner,
+// hint, settings, or R) can't spawn concurrent full-dump fetches.
+func (m Model) startRefresh() (Model, tea.Cmd) {
+	if m.refreshing {
+		return m, nil
+	}
+	m.progress = make(chan int64, 1)
+	m.refreshing = true
+	return m, tea.Batch(refreshWithProgressCmd(m.dir, m.progress), listenProgressCmd(m.progress), m.sp.Tick)
+}
+
+// enableCatalog opts in, persists consent, and starts the background download.
+// Shared by the Home banner, the search hint, and the settings row.
+func (m Model) enableCatalog() (Model, tea.Cmd) {
+	m.offlineCatalog = "on"
+	if m.store != nil {
+		_ = m.store.SaveOfflineCatalog("on")
+	}
+	return m.startRefresh()
+}
+
+// disableCatalog turns the offline catalog off and persists the choice; it does
+// not delete any cached dump (the user can remove the file by hand).
+func (m Model) disableCatalog() Model {
+	m.offlineCatalog = "off"
+	if m.store != nil {
+		_ = m.store.SaveOfflineCatalog("off")
+	}
+	return m
+}
+
+// clearCatalogCache deletes the cached dump, drops the in-memory corpus, and
+// turns the catalog off so it won't silently re-download.
+func (m Model) clearCatalogCache() Model {
+	if m.dir != nil {
+		_ = m.dir.ClearCorpus()
+	}
+	m.offlineCatalog = "off"
+	if m.store != nil {
+		_ = m.store.SaveOfflineCatalog("off")
+	}
+	m.status = "offline catalog cache cleared"
+	return m
+}
+
+// bannerVisible reports whether the first-launch offline-catalog offer should
+// be shown: only on Home, only while consent is still undecided, and only
+// until the user dismisses it with "not now" for this session.
+func (m Model) bannerVisible() bool {
+	return m.view == viewHome && m.offlineCatalog == "ask" && !m.bannerDismissed
+}
+
+// shouldOfferCatalogHint reports whether a weak search result should offer to
+// enable the offline catalog: only while consent is undecided, only for a
+// real query that still found nothing.
+func (m Model) shouldOfferCatalogHint(query string, results int) bool {
+	return m.offlineCatalog != "on" && results == 0 &&
+		len([]rune(strings.TrimSpace(query))) >= minSearchLen
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -196,6 +277,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.loading = false
 		m.status = "error: " + msg.err.Error()
+		return m, nil
+	case corpusProgressMsg:
+		m.downloaded = msg.downloaded
+		return m, listenProgressCmd(m.progress) // keep listening
+	case corpusRefreshedMsg:
+		m.refreshing = false
+		m.downloaded = 0
+		if msg.err != nil {
+			m.status = "couldn't refresh — keeping current stations"
+			return m, nil
+		}
+		m.status = "station list updated"
+		// Re-pull the vote-sorted popular preview only where it's actually shown:
+		// on Home ONLY when there are no favorites (otherwise Home shows the
+		// favorites list — don't clobber it), and on the popular browse view.
+		if (m.view == viewHome && len(m.favKeys) == 0) || (m.view == viewBrowse && m.crumb == "popular") {
+			return m.load(popularCmd(m.dir))
+		}
 		return m, nil
 	case titleMsg:
 		m.nowTitle = sanitizeTitle(msg.title)
@@ -248,7 +347,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		return m, tea.Batch(searchCmd(m.dir, q), m.sp.Tick)
 	case spinner.TickMsg:
-		if !m.loading {
+		if !m.loading && !m.refreshing {
 			return m, nil
 		}
 		var cmd tea.Cmd
@@ -346,6 +445,18 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateSettings(k)
 	}
 
+	// The first-launch offline-catalog offer intercepts y/n/esc while it's up,
+	// on top of (not instead of) the normal Home key handling below.
+	if m.bannerVisible() {
+		switch k.String() {
+		case "y":
+			return m.enableCatalog()
+		case "n", "esc":
+			m.bannerDismissed = true
+			return m, nil
+		}
+	}
+
 	// Browse + favorites: list navigation.
 	switch k.String() {
 	case "ctrl+c", "q":
@@ -403,6 +514,11 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.view = viewBrowse
 		m.crumb = "popular"
 		return m.load(popularCmd(m.dir))
+	case "R":
+		if !m.refreshing {
+			return m.startRefresh()
+		}
+		return m, nil
 	case "a":
 		m.view = viewAdd
 		m.addFocus = 0

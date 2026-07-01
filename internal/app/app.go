@@ -49,8 +49,11 @@ func Run() error {
 			UserAgent: "onda/" + version,
 		}),
 		Offline: directory.NewOffline(),
-		Cache:   directory.NewCache(cacheDir, 24*time.Hour),
+		Corpus:  directory.NewCorpusStore(cacheDir, 7*24*time.Hour),
 	}
+	fresh := dir.LoadCorpus() // load any cached dump; if not fresh, refresh in the background
+	consent := cfg.OfflineCatalog
+	needsRefresh := consent == "on" && !fresh // only auto-download once opted in
 
 	p, err := player.New(player.Options{Normalize: cfg.Normalize})
 	if err != nil {
@@ -62,7 +65,7 @@ func Run() error {
 	_ = p.Volume(cfg.Volume) // restore the last session's volume
 
 	model := tui.New(dir, p, st, domain.QualityPref(cfg.Quality), cfg.Tracking,
-		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, cfg.LiveSearch, cfg.Volume, cfg.Normalize, version, cacheDir)
+		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, cfg.LiveSearch, cfg.Volume, cfg.Normalize, needsRefresh, consent, version, cacheDir)
 	prog := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseAllMotion())
 
 	// Bridge player events into the TUI.
@@ -104,9 +107,10 @@ func showFirstRunNoticeOnce(st *store.Store) {
 	fmt.Println()
 	fmt.Println("onda connects you directly to broadcasters — like opening a stream in a")
 	fmt.Println("browser or VLC, they (and, for non-HTTPS streams, your network) can see")
-	fmt.Println("what you're playing. Searches — including as you type — go to the public")
-	fmt.Println("Radio Browser service.")
-	fmt.Println("onda itself never records, rebroadcasts, or reports your listening —")
+	fmt.Println("what you're playing.")
+	fmt.Println("onda keeps a local copy of the public station directory and searches it on your")
+	fmt.Println("machine — it contacts Radio Browser only to refresh that list (manually, or about")
+	fmt.Println("weekly). onda itself never records, rebroadcasts, or reports your listening —")
 	fmt.Println("popularity tracking is off by default (change it in settings).")
 	fmt.Println("onda also checks GitHub once a day for new versions; turn this off in settings.")
 	fmt.Println()

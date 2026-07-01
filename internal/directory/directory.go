@@ -3,6 +3,9 @@ package directory
 
 import (
 	"context"
+	"errors"
+	"sort"
+	"sync"
 
 	"github.com/pedrosousa13/onda/internal/domain"
 )
@@ -13,63 +16,137 @@ type Source interface {
 	Search(ctx context.Context, query string) ([]domain.Station, error)
 }
 
-// Directory aggregates sources with caching and offline fallback.
+// Directory serves stations from an in-memory corpus (the full Radio Browser
+// dump). The network is touched only by Refresh.
 type Directory struct {
-	Online  Source
-	Offline Source
-	Cache   *Cache
+	Online  Source       // used only by Refresh (must implement fullFetcherProgress)
+	Offline Source       // embedded starter list, the cold-start/offline floor
+	Corpus  *CorpusStore // on-disk persistence; nil disables persistence
+
+	mu     sync.RWMutex
+	corpus []domain.Station
 }
 
+type fullFetcherProgress interface {
+	FetchAllWithProgress(ctx context.Context, onProgress func(int64)) ([]domain.Station, error)
+}
+
+func (d *Directory) setCorpus(s []domain.Station) {
+	d.mu.Lock()
+	d.corpus = s
+	d.mu.Unlock()
+}
+
+func (d *Directory) snapshot() []domain.Station {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.corpus
+}
+
+// LoadCorpus loads any cached dump into memory. Returns true when the loaded
+// dump is still within TTL (caller skips an immediate refresh).
+func (d *Directory) LoadCorpus() bool {
+	if d.Corpus == nil {
+		return false
+	}
+	if st, at, ok := d.Corpus.Load(); ok {
+		d.setCorpus(st)
+		return d.Corpus.Fresh(at)
+	}
+	return false
+}
+
+// ClearCorpus drops the in-memory corpus and deletes the on-disk dump.
+func (d *Directory) ClearCorpus() error {
+	d.setCorpus(nil)
+	if d.Corpus != nil {
+		return d.Corpus.Delete()
+	}
+	return nil
+}
+
+// CorpusSize returns the cached dump size in bytes and whether it exists.
+func (d *Directory) CorpusSize() (int64, bool) {
+	if d.Corpus == nil {
+		return 0, false
+	}
+	return d.Corpus.Size()
+}
+
+// base returns the corpus, falling back to the embedded starter list.
+func (d *Directory) base(ctx context.Context) ([]domain.Station, error) {
+	if s := d.snapshot(); len(s) > 0 {
+		return s, nil
+	}
+	if d.Offline != nil {
+		return d.Offline.Search(ctx, "")
+	}
+	return nil, nil
+}
+
+// Initial is the cold-start list: the corpus if loaded, else the embedded list.
+func (d *Directory) Initial(ctx context.Context) ([]domain.Station, error) {
+	return d.base(ctx)
+}
+
+// Search resolves in priority order:
+//  1. corpus loaded  -> local fuzzy match (typo-tolerant, no network)
+//  2. no corpus      -> online per-query search (today's behaviour)
+//  3. online errors  -> bundled starter list as an offline floor
 func (d *Directory) Search(ctx context.Context, query string) ([]domain.Station, error) {
-	if d.Cache != nil {
-		if fresh, ok := d.Cache.Get(query); ok {
-			return fresh, nil
-		}
+	if s := d.snapshot(); len(s) > 0 {
+		return matchLocal(query, s), nil
 	}
 	if d.Online != nil {
-		if stations, err := d.Online.Search(ctx, query); err == nil {
-			if d.Cache != nil {
-				_ = d.Cache.Put(query, stations)
-			}
-			return stations, nil
+		if st, err := d.Online.Search(ctx, query); err == nil {
+			return st, nil
 		}
 	}
-	if d.Cache != nil {
-		if stale, ok := d.Cache.Stale(query); ok {
-			return stale, nil
+	if d.Offline != nil {
+		st, err := d.Offline.Search(ctx, "")
+		if err != nil {
+			return nil, err
 		}
+		return matchLocal(query, st), nil
 	}
-	return d.Offline.Search(ctx, query)
+	return nil, nil
 }
 
-// popularSource is optionally implemented by an online Source that can return
-// a community-popularity ranking.
-type popularSource interface {
-	TopVoted(ctx context.Context, limit int) ([]domain.Station, error)
-}
-
-const popularKey = "__popular__"
-
-// Popular returns the top-voted stations (read-only; reports nothing about the
-// user). Falls back to cache, then the embedded offline list, when offline.
+// Popular returns the corpus sorted by community votes (local; no network).
 func (d *Directory) Popular(ctx context.Context) ([]domain.Station, error) {
-	if d.Cache != nil {
-		if fresh, ok := d.Cache.Get(popularKey); ok {
-			return fresh, nil
-		}
+	stations, err := d.base(ctx)
+	if err != nil {
+		return nil, err
 	}
-	if ps, ok := d.Online.(popularSource); ok && d.Online != nil {
-		if stations, err := ps.TopVoted(ctx, 100); err == nil {
-			if d.Cache != nil {
-				_ = d.Cache.Put(popularKey, stations)
-			}
-			return stations, nil
-		}
+	out := make([]domain.Station, len(stations))
+	copy(out, stations)
+	sort.SliceStable(out, func(a, b int) bool { return out[a].Votes > out[b].Votes })
+	if len(out) > 100 {
+		out = out[:100]
 	}
-	if d.Cache != nil {
-		if stale, ok := d.Cache.Stale(popularKey); ok {
-			return stale, nil
-		}
+	return out, nil
+}
+
+// Refresh downloads a fresh full dump, replaces the corpus, and persists it.
+// Returns the new corpus. The only method that uses the network.
+func (d *Directory) Refresh(ctx context.Context) ([]domain.Station, error) {
+	return d.RefreshWithProgress(ctx, nil)
+}
+
+// RefreshWithProgress is like Refresh but reports cumulative bytes downloaded
+// via onProgress as the full dump arrives.
+func (d *Directory) RefreshWithProgress(ctx context.Context, onProgress func(downloaded int64)) ([]domain.Station, error) {
+	f, ok := d.Online.(fullFetcherProgress)
+	if !ok || d.Online == nil {
+		return d.snapshot(), errors.New("online source cannot fetch the full dump")
 	}
-	return d.Offline.Search(ctx, "")
+	stations, err := f.FetchAllWithProgress(ctx, onProgress)
+	if err != nil {
+		return d.snapshot(), err
+	}
+	d.setCorpus(stations)
+	if d.Corpus != nil {
+		_ = d.Corpus.Save(stations)
+	}
+	return stations, nil
 }

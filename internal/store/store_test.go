@@ -170,3 +170,20 @@ func TestCustomStations(t *testing.T) {
 		t.Fatalf("custom station not stored: %+v", got)
 	}
 }
+
+func TestSaveOfflineCatalogRoundTrips(t *testing.T) {
+	s := &Store{dir: t.TempDir()} // in-package test: set the unexported dir directly
+	if got := DefaultConfig().OfflineCatalog; got != "ask" {
+		t.Fatalf("default OfflineCatalog = %q, want \"ask\"", got)
+	}
+	if err := s.SaveOfflineCatalog("on"); err != nil {
+		t.Fatalf("SaveOfflineCatalog: %v", err)
+	}
+	c, err := s.LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if c.OfflineCatalog != "on" {
+		t.Fatalf("OfflineCatalog = %q, want \"on\"", c.OfflineCatalog)
+	}
+}

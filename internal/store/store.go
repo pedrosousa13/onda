@@ -240,3 +240,12 @@ func (s *Store) SaveNormalize(v bool) error {
 	c.Normalize = v
 	return s.SaveConfig(c)
 }
+
+func (s *Store) SaveOfflineCatalog(v string) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.OfflineCatalog = v
+	return s.SaveConfig(c)
+}
