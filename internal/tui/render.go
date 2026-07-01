@@ -118,33 +118,93 @@ func (m Model) viewHome() string {
 	b.WriteString(lipgloss.PlaceHorizontal(m.contentWidth(), lipgloss.Center, hint))
 	b.WriteString("\n\n")
 
+	cw := m.contentWidth()
 	hasFavs := len(m.favKeys) > 0
-	if hasFavs {
-		b.WriteString(m.st.Crumb.Render("favorites") + "\n")
-	} else {
-		b.WriteString(m.st.Crumb.Render("popular") +
-			m.st.Help.Render("   (no favorites yet — press ") + m.st.Key.Render("f") +
-			m.st.Help.Render(" on any station to save it)") + "\n")
+	favLabel := func() {
+		if hasFavs {
+			b.WriteString(m.st.Crumb.Render("favorites") + "\n")
+		} else {
+			b.WriteString(m.st.Crumb.Render("popular") +
+				m.st.Help.Render("   (no favorites yet — press ") + m.st.Key.Render("f") +
+				m.st.Help.Render(" on any station to save it)") + "\n")
+		}
 	}
 
-	// header(2) + blank(1) + panel(5) + hint(1) + blank(1) + label(1) + footer(1)
-	listRows := m.height - 13
+	recN := m.homeRecentsN()
+	if recN == 0 {
+		favLabel()
+		// header(2) + blank(1) + panel(5) + hint(1) + blank(1) + label(1) + footer(1)
+		listRows := m.height - 13
+		if listRows < 3 {
+			listRows = 3
+		}
+		if m.loading && len(m.stations) == 0 {
+			b.WriteString(m.st.Meta.Render("  "+m.sp.View()+" loading…") + "\n")
+		} else if len(m.stations) == 0 {
+			b.WriteString(m.st.Meta.Render("  nothing to show") + "\n")
+		} else {
+			start, end := windowBounds(m.cursor, len(m.stations), listRows)
+			for i := start; i < end; i++ {
+				b.WriteString(m.renderRow(cw, i, m.stations[i]) + "\n")
+			}
+		}
+		b.WriteString("\n")
+		b.WriteString(m.homeFooter())
+		return b.String()
+	}
+
+	// Two sections: pinned "recent" on top, then the scrolling favorites/popular
+	// list. One extra label line vs the single-section layout → budget height-14.
+	listRows := m.height - 14
 	if listRows < 3 {
 		listRows = 3
 	}
-	if m.loading && len(m.stations) == 0 {
-		b.WriteString(m.st.Meta.Render("  " + m.sp.View() + " loading…") + "\n")
-	} else if len(m.stations) == 0 {
-		b.WriteString(m.st.Meta.Render("  nothing to show") + "\n")
+	dispRecN, favStart, favEnd, _ := m.homeFavWindow(listRows)
+
+	b.WriteString(m.st.Crumb.Render("recent") + "\n")
+	for i := 0; i < dispRecN; i++ {
+		b.WriteString(m.renderRow(cw, i, m.stations[i]) + "\n")
+	}
+	favLabel()
+	if m.loading && favEnd == favStart {
+		b.WriteString(m.st.Meta.Render("  "+m.sp.View()+" loading…") + "\n")
 	} else {
-		start, end := windowBounds(m.cursor, len(m.stations), listRows)
-		for i := start; i < end; i++ {
-			b.WriteString(m.renderRow(m.contentWidth(), i, m.stations[i]) + "\n")
+		for j := favStart; j < favEnd; j++ {
+			idx := recN + j
+			b.WriteString(m.renderRow(cw, idx, m.stations[idx]) + "\n")
 		}
 	}
 	b.WriteString("\n")
 	b.WriteString(m.homeFooter())
 	return b.String()
+}
+
+// homeFavWindow computes the Home two-section geometry: how many recent rows to
+// pin (dispRecN, clamped to leave room) and the visible [favStart,favEnd) slice
+// into the favorites/popular sub-list m.stations[recN:], keeping the cursor in view.
+func (m Model) homeFavWindow(listRows int) (dispRecN, favStart, favEnd, favRows int) {
+	recN := m.homeRecentsN()
+	dispRecN = recN
+	if dispRecN > listRows-1 {
+		dispRecN = listRows - 1
+	}
+	if dispRecN < 0 {
+		dispRecN = 0
+	}
+	favRows = listRows - dispRecN
+	if favRows < 1 {
+		favRows = 1
+	}
+	favTotal := len(m.stations) - recN
+	if favTotal < 0 {
+		favTotal = 0
+	}
+	favCursor := m.cursor - recN
+	if favCursor < 0 {
+		favCursor = 0
+	}
+	favStart, favEnd = windowBounds(favCursor, favTotal, favRows)
+	return
 }
 
 func (m Model) homeFooter() string {
