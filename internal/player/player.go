@@ -3,6 +3,7 @@ package player
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"net"
 	"os/exec"
 	"sync"
@@ -38,9 +39,15 @@ type Player struct {
 	mu     sync.Mutex
 	id     int
 	sock   string
+
+	bin       string // resolved mpv binary name/path
+	started   bool
+	normalize bool
+	volume    *int // desired startup volume, applied via --volume; nil if never set
 }
 
-// New verifies mpv exists, starts it headless, and connects to its IPC socket.
+// New verifies mpv exists on PATH but does not start it or touch the audio
+// device — mpv is started lazily on the first Play() (see ensureStarted).
 func New(opts Options) (*Player, error) {
 	bin := opts.Binary
 	if bin == "" {
@@ -49,58 +56,133 @@ func New(opts Options) (*Player, error) {
 	if _, err := exec.LookPath(bin); err != nil {
 		return nil, errors.New("mpv not found on PATH: install mpv (e.g. `brew install mpv`, or `scoop install mpv` on Windows)")
 	}
-	// ipcAddress() is platform-specific (Unix socket path or Windows pipe name).
-	addr := ipcAddress()
-	cleanupIPC(addr) // remove any stale socket file (no-op on Windows)
-	args := []string{"--idle=yes", "--no-video", "--no-terminal", "--input-ipc-server=" + addr}
-	if opts.Normalize {
+	p := &Player{
+		bin:       bin,
+		sock:      ipcAddress(), // platform-specific (Unix socket path or Windows pipe name)
+		events:    make(chan Event, 16),
+		normalize: opts.Normalize,
+	}
+	return p, nil
+}
+
+// ensureStarted starts mpv and connects its IPC socket, exactly once. Safe to
+// call repeatedly/concurrently; only the first call does the work.
+func (p *Player) ensureStarted() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.started {
+		return nil
+	}
+
+	cleanupIPC(p.sock) // remove any stale socket file (no-op on Windows)
+	args := []string{"--idle=yes", "--no-video", "--no-terminal", "--input-ipc-server=" + p.sock}
+	if p.normalize {
 		args = append(args, "--af="+normalizeFilter)
 	}
-	cmd := exec.Command(bin, args...)
-	if err := cmd.Start(); err != nil {
-		return nil, err
+	if p.volume != nil {
+		args = append(args, fmt.Sprintf("--volume=%d", *p.volume))
 	}
-	conn, err := dialWithRetry(addr) // platform-specific dialer
+	cmd := exec.Command(p.bin, args...)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	conn, err := dialWithRetry(p.sock) // platform-specific dialer
 	if err != nil {
 		reap(cmd)
-		return nil, err
+		return err
 	}
-	p := &Player{cmd: cmd, conn: conn, events: make(chan Event, 16), sock: addr}
-	if err := p.observe(); err != nil {
-		_ = p.Close()
-		return nil, err
+	p.cmd = cmd
+	p.conn = conn
+	if err := p.observeLocked(); err != nil {
+		p.closeLocked()
+		return err
 	}
+	p.started = true
 	go p.readLoop()
-	return p, nil
+	return nil
 }
 
 func (p *Player) Events() <-chan Event { return p.events }
 
-func (p *Player) Play(url string) error { return p.send("loadfile", url) }
-func (p *Player) Stop() error           { return p.send("stop") }
-func (p *Player) Pause() error          { return p.send("set_property", "pause", true) }
-func (p *Player) Resume() error         { return p.send("set_property", "pause", false) }
-func (p *Player) Volume(pct int) error  { return p.send("set_property", "volume", pct) }
+func (p *Player) Play(url string) error {
+	if err := p.ensureStarted(); err != nil {
+		return err
+	}
+	return p.send("loadfile", url)
+}
+
+func (p *Player) Stop() error {
+	if !p.isStarted() {
+		return nil
+	}
+	return p.send("stop")
+}
+
+func (p *Player) Pause() error {
+	if !p.isStarted() {
+		return nil
+	}
+	return p.send("set_property", "pause", true)
+}
+
+func (p *Player) Resume() error {
+	if !p.isStarted() {
+		return nil
+	}
+	return p.send("set_property", "pause", false)
+}
+
+// Volume sets mpv's volume if already running; otherwise it stores pct as the
+// desired startup volume, applied via the --volume launch flag once mpv starts.
+func (p *Player) Volume(pct int) error {
+	if !p.isStarted() {
+		p.mu.Lock()
+		p.volume = &pct
+		p.mu.Unlock()
+		return nil
+	}
+	return p.send("set_property", "volume", pct)
+}
 
 // SetNormalize toggles loudness normalization live by setting mpv's audio-filter
-// chain to dynaudnorm (on) or clearing it (off).
+// chain to dynaudnorm (on) or clearing it (off). If mpv hasn't started yet, it
+// updates the stored flag so ensureStarted passes/omits --af at launch.
 func (p *Player) SetNormalize(on bool) error {
+	if !p.isStarted() {
+		p.mu.Lock()
+		p.normalize = on
+		p.mu.Unlock()
+		return nil
+	}
 	if on {
 		return p.send("set_property", "af", normalizeFilter)
 	}
 	return p.send("set_property", "af", "")
 }
 
-func (p *Player) observe() error {
-	if err := p.send("observe_property", 1, "media-title"); err != nil {
+func (p *Player) isStarted() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.started
+}
+
+// observeLocked registers the property observers used to emit title/idle/playing
+// events. Callers must already hold p.mu (used from ensureStarted during startup).
+func (p *Player) observeLocked() error {
+	if err := p.sendLocked("observe_property", 1, "media-title"); err != nil {
 		return err
 	}
-	return p.send("observe_property", 2, "core-idle")
+	return p.sendLocked("observe_property", 2, "core-idle")
 }
 
 func (p *Player) send(args ...any) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	return p.sendLocked(args...)
+}
+
+// sendLocked writes a command to mpv's IPC connection. Callers must hold p.mu.
+func (p *Player) sendLocked(args ...any) error {
 	p.id++
 	b, err := encodeCommand(p.id, args...)
 	if err != nil {
@@ -147,12 +229,23 @@ func (p *Player) emit(e Event) {
 }
 
 func (p *Player) Close() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if !p.started {
+		return nil
+	}
+	p.closeLocked()
+	return nil
+}
+
+// closeLocked tears down the mpv process and IPC connection. Callers must hold
+// p.mu and must only call this when mpv has actually been started.
+func (p *Player) closeLocked() {
 	if p.conn != nil {
 		_ = p.conn.Close()
 	}
 	reap(p.cmd)
 	cleanupIPC(p.sock) // platform-specific; removes the socket file on Unix, no-op on Windows
-	return nil
 }
 
 // reap kills mpv and waits for it, so no zombie process is left behind.
