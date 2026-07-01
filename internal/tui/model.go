@@ -98,6 +98,8 @@ type Model struct {
 	loading      bool
 	refreshing   bool
 	needsRefresh bool
+	downloaded   int64
+	progress     chan int64
 	crumb        string
 
 	update         update.Status
@@ -157,6 +159,11 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 	} else {
 		m.loading = true
 	}
+	// Created here, not in Init(): Init has a value receiver, so it can't
+	// persist a channel onto the running model. The R-key path uses startRefresh().
+	if needsRefresh {
+		m.progress = make(chan int64, 1)
+	}
 	return m
 }
 
@@ -166,7 +173,7 @@ func (m Model) Init() tea.Cmd {
 		cmds = append(cmds, initialCmd(m.dir), m.sp.Tick)
 	}
 	if m.needsRefresh { // refresh the corpus in the background
-		cmds = append(cmds, refreshCmd(m.dir), m.sp.Tick)
+		cmds = append(cmds, refreshWithProgressCmd(m.dir, m.progress), listenProgressCmd(m.progress), m.sp.Tick)
 	}
 	if m.updateCheck && m.version != "" && !strings.HasSuffix(m.version, "-dev") {
 		cmds = append(cmds, updateCheckCmd(m.version, m.updateCacheDir))
@@ -181,6 +188,13 @@ func (m Model) Init() tea.Cmd {
 func (m Model) load(cmd tea.Cmd) (tea.Model, tea.Cmd) {
 	m.loading = true
 	return m, tea.Batch(cmd, m.sp.Tick)
+}
+
+// startRefresh kicks off a background corpus download with live byte progress.
+func (m Model) startRefresh() (Model, tea.Cmd) {
+	m.progress = make(chan int64, 1)
+	m.refreshing = true
+	return m, tea.Batch(refreshWithProgressCmd(m.dir, m.progress), listenProgressCmd(m.progress), m.sp.Tick)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -203,8 +217,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.status = "error: " + msg.err.Error()
 		return m, nil
+	case corpusProgressMsg:
+		m.downloaded = msg.downloaded
+		return m, listenProgressCmd(m.progress) // keep listening
 	case corpusRefreshedMsg:
 		m.refreshing = false
+		m.downloaded = 0
 		if msg.err != nil {
 			m.status = "couldn't refresh — keeping current stations"
 			return m, nil
@@ -424,8 +442,7 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.load(popularCmd(m.dir))
 	case "R":
 		if !m.refreshing {
-			m.refreshing = true
-			return m, refreshCmd(m.dir)
+			return m.startRefresh()
 		}
 		return m, nil
 	case "a":

@@ -79,11 +79,33 @@ type corpusRefreshedMsg struct {
 	err      error
 }
 
-// refreshCmd refreshes the corpus from Radio Browser off the UI goroutine.
-func refreshCmd(d Searcher) tea.Cmd {
+// corpusProgressMsg carries the cumulative bytes downloaded so far.
+type corpusProgressMsg struct{ downloaded int64 }
+
+// refreshWithProgressCmd runs the full-dump download off the UI goroutine,
+// pushing the latest byte count onto progress (dropping if the UI is behind),
+// and closing it when done.
+func refreshWithProgressCmd(d Searcher, progress chan int64) tea.Cmd {
 	return func() tea.Msg {
-		st, err := d.Refresh(context.Background())
+		st, err := d.RefreshWithProgress(context.Background(), func(downloaded int64) {
+			select {
+			case progress <- downloaded:
+			default:
+			}
+		})
+		close(progress)
 		return corpusRefreshedMsg{stations: st, err: err}
+	}
+}
+
+// listenProgressCmd waits for the next byte count; returns nil once closed.
+func listenProgressCmd(progress chan int64) tea.Cmd {
+	return func() tea.Msg {
+		n, ok := <-progress
+		if !ok {
+			return nil
+		}
+		return corpusProgressMsg{downloaded: n}
 	}
 }
 
@@ -93,6 +115,7 @@ type Searcher interface {
 	Popular(ctx context.Context) ([]domain.Station, error)
 	Initial(ctx context.Context) ([]domain.Station, error)
 	Refresh(ctx context.Context) ([]domain.Station, error)
+	RefreshWithProgress(ctx context.Context, onProgress func(downloaded int64)) ([]domain.Station, error)
 }
 
 // TitleMsg builds a titleMsg from outside the package (used by the app event bridge).

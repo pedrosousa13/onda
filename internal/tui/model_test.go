@@ -30,6 +30,9 @@ func (stubDir) Search(context.Context, string) ([]domain.Station, error) { retur
 func (stubDir) Popular(context.Context) ([]domain.Station, error)        { return nil, nil }
 func (stubDir) Initial(context.Context) ([]domain.Station, error)        { return nil, nil }
 func (stubDir) Refresh(context.Context) ([]domain.Station, error)        { return nil, nil }
+func (stubDir) RefreshWithProgress(context.Context, func(int64)) ([]domain.Station, error) {
+	return nil, nil
+}
 
 var errSample = errors.New("boom")
 
@@ -487,5 +490,17 @@ func TestCorpusRefreshedDoesNotClobberSearch(t *testing.T) {
 	}
 	if len(got.stations) != 4 {
 		t.Fatalf("search results must be preserved, got %d", len(got.stations))
+	}
+}
+
+func TestCorpusProgressUpdatesThenCompletes(t *testing.T) {
+	m := Model{refreshing: true, progress: make(chan int64, 1)}
+	m2, _ := m.Update(corpusProgressMsg{downloaded: 1024})
+	if got := m2.(Model).downloaded; got != 1024 {
+		t.Fatalf("downloaded = %d, want 1024", got)
+	}
+	m3, _ := m2.(Model).Update(corpusRefreshedMsg{stations: []domain.Station{{Name: "X"}}})
+	if m3.(Model).refreshing {
+		t.Fatal("refreshing should be false after completion")
 	}
 }

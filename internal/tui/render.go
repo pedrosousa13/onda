@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -221,7 +222,8 @@ func (m Model) header(crumb string) string {
 	left := m.st.Title.Render("onda") + m.st.Subtitle.Render("  ·  wander the airwaves")
 	right := m.st.Crumb.Render(crumb)
 	if m.refreshing {
-		right = m.st.Meta.Render(m.sp.View()+" updating…  ") + right
+		mb := fmt.Sprintf("%.1f MB", float64(m.downloaded)/1_000_000)
+		right = m.st.Meta.Render(m.sp.View()+" building offline catalog… "+mb+"  ") + right
 	}
 	w := m.contentWidth()
 	gap := w - lipgloss.Width(left) - lipgloss.Width(right)
