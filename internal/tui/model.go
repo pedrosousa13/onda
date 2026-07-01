@@ -68,39 +68,40 @@ type Store interface {
 }
 
 type Model struct {
-	dir          Searcher
-	player       Player
-	store        Store
-	view         view
-	stations     []domain.Station
-	cursor       int
-	hoverIdx     int // station row under the mouse, -1 if none
-	status       string
-	nowTitle     string
-	playing      domain.Station
-	varIdx       int // index into playing.Variants currently streaming
-	isPlaying    bool
-	phase        playbackPhase
-	playErr      string // message shown when phase == phaseFailed
-	playAttempt  int    // monotonic; guards stale connect timeouts
-	quality      domain.QualityPref
-	tracking     string
-	history      bool
-	volume       int
-	normalize    bool
-	themeName    string
-	st           Styles
-	width        int
-	height       int
-	favKeys      map[string]bool
-	homeRecents  []domain.Station // leading "recent" section on Home (opt-in, capped)
-	sp           spinner.Model
-	loading      bool
-	refreshing   bool
-	needsRefresh bool
-	downloaded   int64
-	progress     chan int64
-	crumb        string
+	dir            Searcher
+	player         Player
+	store          Store
+	view           view
+	stations       []domain.Station
+	cursor         int
+	hoverIdx       int // station row under the mouse, -1 if none
+	status         string
+	nowTitle       string
+	playing        domain.Station
+	varIdx         int // index into playing.Variants currently streaming
+	isPlaying      bool
+	phase          playbackPhase
+	playErr        string // message shown when phase == phaseFailed
+	playAttempt    int    // monotonic; guards stale connect timeouts
+	quality        domain.QualityPref
+	tracking       string
+	history        bool
+	volume         int
+	normalize      bool
+	themeName      string
+	st             Styles
+	width          int
+	height         int
+	favKeys        map[string]bool
+	homeRecents    []domain.Station // leading "recent" section on Home (opt-in, capped)
+	sp             spinner.Model
+	loading        bool
+	refreshing     bool
+	needsRefresh   bool
+	offlineCatalog string // consent: ask|on|off — gates auto-download in Init
+	downloaded     int64
+	progress       chan int64
+	crumb          string
 
 	update         update.Status
 	updateDismiss  bool
@@ -118,7 +119,7 @@ type Model struct {
 	addFocus   int // 0=name, 1=url, 2=bitrate
 }
 
-func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck, liveSearch bool, volume int, normalize bool, needsRefresh bool, version, updateCacheDir string) Model {
+func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck, liveSearch bool, volume int, normalize bool, needsRefresh bool, consent string, version, updateCacheDir string) Model {
 	search := textinput.New()
 	search.Placeholder = "search stations, country, or genre…"
 	name := textinput.New()
@@ -138,7 +139,7 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 		width: 80, height: 24, favKeys: map[string]bool{},
 		hoverIdx: -1,
 		sp:       sp, view: viewHome, crumb: "home",
-		needsRefresh: needsRefresh, refreshing: needsRefresh,
+		needsRefresh: needsRefresh, refreshing: needsRefresh, offlineCatalog: consent,
 		updateCheck: updateCheck, version: version, updateCacheDir: updateCacheDir,
 		liveSearch: liveSearch,
 		search:     search, addName: name, addURL: url, addBr: br,

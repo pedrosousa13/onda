@@ -52,6 +52,8 @@ func Run() error {
 		Corpus:  directory.NewCorpusStore(cacheDir, 7*24*time.Hour),
 	}
 	fresh := dir.LoadCorpus() // load any cached dump; if not fresh, refresh in the background
+	consent := cfg.OfflineCatalog
+	needsRefresh := consent == "on" && !fresh // only auto-download once opted in
 
 	p, err := player.New(player.Options{Normalize: cfg.Normalize})
 	if err != nil {
@@ -63,7 +65,7 @@ func Run() error {
 	_ = p.Volume(cfg.Volume) // restore the last session's volume
 
 	model := tui.New(dir, p, st, domain.QualityPref(cfg.Quality), cfg.Tracking,
-		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, cfg.LiveSearch, cfg.Volume, cfg.Normalize, !fresh, version, cacheDir)
+		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, cfg.LiveSearch, cfg.Volume, cfg.Normalize, needsRefresh, consent, version, cacheDir)
 	prog := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseAllMotion())
 
 	// Bridge player events into the TUI.
