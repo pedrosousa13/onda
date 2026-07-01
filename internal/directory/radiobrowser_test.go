@@ -85,3 +85,125 @@ func TestFetchAllGroupsDump(t *testing.T) {
 		t.Fatalf("expected 2 stations, got %d", len(out))
 	}
 }
+
+func TestCountingReaderReportsCumulativeBytes(t *testing.T) {
+	var last int64
+	cr := &countingReader{r: strings.NewReader("hello world"), onN: func(n int64) { last = n }}
+	buf, err := io.ReadAll(cr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if int64(len(buf)) != last {
+		t.Fatalf("reported %d, read %d", last, len(buf))
+	}
+	if last != 11 {
+		t.Fatalf("want 11 bytes, got %d", last)
+	}
+}
+
+func TestFetchAllRequestsHideBroken(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.RequestURI()
+		w.Write([]byte("[]"))
+	}))
+	defer srv.Close()
+	rb := NewRadioBrowser(RBOptions{Mirrors: []string{srv.URL}, UserAgent: "test"})
+	_, _ = rb.FetchAll(context.Background())
+	if !strings.Contains(gotPath, "hidebroken=true") {
+		t.Fatalf("full-dump path missing hidebroken=true: %s", gotPath)
+	}
+}
+
+// chunkedBody yields the body one bounded chunk per Read, so the countingReader
+// is driven across multiple Reads deterministically (unlike an httptest server,
+// where the client transport may coalesce flushed writes into a single Read).
+type chunkedBody struct {
+	chunks [][]byte
+	i      int
+}
+
+func (b *chunkedBody) Read(p []byte) (int, error) {
+	if b.i >= len(b.chunks) {
+		return 0, io.EOF
+	}
+	n := copy(p, b.chunks[b.i])
+	b.chunks[b.i] = b.chunks[b.i][n:]
+	if len(b.chunks[b.i]) == 0 {
+		b.i++
+	}
+	return n, nil
+}
+
+func (b *chunkedBody) Close() error { return nil }
+
+type chunkedRT struct{ chunks [][]byte }
+
+func (rt chunkedRT) RoundTrip(*http.Request) (*http.Response, error) {
+	cp := make([][]byte, len(rt.chunks))
+	for i, c := range rt.chunks {
+		cp[i] = append([]byte(nil), c...)
+	}
+	return &http.Response{
+		StatusCode: 200,
+		Body:       &chunkedBody{chunks: cp},
+		Header:     make(http.Header),
+	}, nil
+}
+
+func TestFetchAllWithProgressReportsMonotonicBytes(t *testing.T) {
+	// A valid stations JSON array split into chunks. chunkedRT hands each chunk
+	// out on a separate Read, so onProgress fires once per chunk and the
+	// strictly-increasing assertion below is actually exercised.
+	chunks := [][]byte{
+		[]byte(`[{"name":"Radio Eins","url_resolved":"http://a","country":"Germany","bitrate":128,"votes":42},`),
+		[]byte(`{"name":"Jazz FM","url_resolved":"http://b","country":"United Kingdom","bitrate":64,"votes":3},`),
+		[]byte(`{"name":"BBC","url_resolved":"http://c","country":"United Kingdom","bitrate":320,"votes":7}]`),
+	}
+	var total int64
+	for _, c := range chunks {
+		total += int64(len(c))
+	}
+
+	rb := NewRadioBrowser(RBOptions{
+		Mirrors:   []string{"http://example.test"},
+		UserAgent: "test",
+		Client:    &http.Client{Transport: chunkedRT{chunks: chunks}},
+	})
+
+	var reports []int64
+	out, err := rb.FetchAllWithProgress(context.Background(), func(n int64) {
+		reports = append(reports, n)
+	})
+	if err != nil {
+		t.Fatalf("FetchAllWithProgress: %v", err)
+	}
+	if len(out) != 3 {
+		t.Fatalf("expected 3 stations, got %d", len(out))
+	}
+	if len(reports) < 2 {
+		t.Fatalf("expected multiple progress reports across chunks, got %d: %v", len(reports), reports)
+	}
+	for i := 1; i < len(reports); i++ {
+		if reports[i] <= reports[i-1] {
+			t.Fatalf("progress not strictly increasing: %v", reports)
+		}
+	}
+	if reports[len(reports)-1] != total {
+		t.Fatalf("final report %d != body length %d", reports[len(reports)-1], total)
+	}
+}
+
+func TestFetchAllWithProgressFallsOverMirrors(t *testing.T) {
+	good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(rbSample))
+	}))
+	defer good.Close()
+	rb := NewRadioBrowser(RBOptions{
+		Mirrors:   []string{"http://127.0.0.1:1", good.URL}, // first is dead
+		UserAgent: "radio/test",
+	})
+	if _, err := rb.FetchAllWithProgress(context.Background(), nil); err != nil {
+		t.Fatalf("expected fallback to succeed, got %v", err)
+	}
+}

@@ -19,7 +19,7 @@ type Source interface {
 // Directory serves stations from an in-memory corpus (the full Radio Browser
 // dump). The network is touched only by Refresh.
 type Directory struct {
-	Online  Source       // used only by Refresh (must implement fullFetcher)
+	Online  Source       // used only by Refresh (must implement fullFetcherProgress)
 	Offline Source       // embedded starter list, the cold-start/offline floor
 	Corpus  *CorpusStore // on-disk persistence; nil disables persistence
 
@@ -27,8 +27,8 @@ type Directory struct {
 	corpus []domain.Station
 }
 
-type fullFetcher interface {
-	FetchAll(ctx context.Context) ([]domain.Station, error)
+type fullFetcherProgress interface {
+	FetchAllWithProgress(ctx context.Context, onProgress func(int64)) ([]domain.Station, error)
 }
 
 func (d *Directory) setCorpus(s []domain.Station) {
@@ -113,11 +113,17 @@ func (d *Directory) Popular(ctx context.Context) ([]domain.Station, error) {
 // Refresh downloads a fresh full dump, replaces the corpus, and persists it.
 // Returns the new corpus. The only method that uses the network.
 func (d *Directory) Refresh(ctx context.Context) ([]domain.Station, error) {
-	f, ok := d.Online.(fullFetcher)
+	return d.RefreshWithProgress(ctx, nil)
+}
+
+// RefreshWithProgress is like Refresh but reports cumulative bytes downloaded
+// via onProgress as the full dump arrives.
+func (d *Directory) RefreshWithProgress(ctx context.Context, onProgress func(downloaded int64)) ([]domain.Station, error) {
+	f, ok := d.Online.(fullFetcherProgress)
 	if !ok || d.Online == nil {
 		return d.snapshot(), errors.New("online source cannot fetch the full dump")
 	}
-	stations, err := f.FetchAll(ctx)
+	stations, err := f.FetchAllWithProgress(ctx, onProgress)
 	if err != nil {
 		return d.snapshot(), err
 	}

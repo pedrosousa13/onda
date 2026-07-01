@@ -188,6 +188,78 @@ func (rb *RadioBrowser) FetchAll(ctx context.Context) ([]domain.Station, error) 
 	return GroupRecords(rbToRecords(raw)), nil
 }
 
+// countingReader wraps a reader and reports the cumulative byte count read so
+// far to onN after every non-empty Read.
+type countingReader struct {
+	r   io.Reader
+	n   int64
+	onN func(int64)
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	if n > 0 {
+		c.n += int64(n)
+		if c.onN != nil {
+			c.onN(c.n)
+		}
+	}
+	return n, err
+}
+
+// getSequentialProgress tries mirrors one at a time, in order, unlike
+// getWithFallback which races them concurrently. Racing would let multiple
+// in-flight bodies report progress simultaneously, producing interleaved,
+// non-monotonic byte counts. Trying mirrors sequentially means only the
+// winning mirror ever drives onProgress, so counts stay monotonic.
+func (rb *RadioBrowser) getSequentialProgress(ctx context.Context, path string, onProgress func(int64)) ([]byte, error) {
+	if len(rb.mirrors) == 0 {
+		return nil, errors.New("no mirrors configured")
+	}
+	var lastErr error
+	for _, base := range rb.mirrors {
+		body, err := func() ([]byte, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
+			if err != nil {
+				return nil, err
+			}
+			req.Header.Set("User-Agent", rb.ua)
+			resp, err := rb.client.Do(req)
+			if err != nil {
+				return nil, err
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				return nil, fmt.Errorf("mirror %s: status %d", base, resp.StatusCode)
+			}
+			cr := &countingReader{r: resp.Body, onN: onProgress}
+			return io.ReadAll(cr)
+		}()
+		if err != nil {
+			lastErr = err
+			continue // reset: next mirror starts its own counter from zero
+		}
+		return body, nil
+	}
+	return nil, lastErr
+}
+
+// FetchAllWithProgress downloads the entire station list like FetchAll, but
+// reports cumulative decompressed bytes downloaded via onProgress as they
+// arrive. It uses a sequential single-mirror path (see getSequentialProgress)
+// so progress reporting stays monotonic.
+func (rb *RadioBrowser) FetchAllWithProgress(ctx context.Context, onProgress func(int64)) ([]domain.Station, error) {
+	body, err := rb.getSequentialProgress(ctx, "/json/stations?hidebroken=true", onProgress)
+	if err != nil {
+		return nil, err
+	}
+	var raw []rbStation
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, err
+	}
+	return GroupRecords(rbToRecords(raw)), nil
+}
+
 func rbToRecords(raw []rbStation) []record {
 	recs := make([]record, 0, len(raw))
 	for _, s := range raw {
