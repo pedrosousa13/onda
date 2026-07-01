@@ -229,6 +229,20 @@ func (m Model) disableCatalog() Model {
 	return m
 }
 
+// clearCatalogCache deletes the cached dump, drops the in-memory corpus, and
+// turns the catalog off so it won't silently re-download.
+func (m Model) clearCatalogCache() Model {
+	if m.dir != nil {
+		_ = m.dir.ClearCorpus()
+	}
+	m.offlineCatalog = "off"
+	if m.store != nil {
+		_ = m.store.SaveOfflineCatalog("off")
+	}
+	m.status = "offline catalog cache cleared"
+	return m
+}
+
 // bannerVisible reports whether the first-launch offline-catalog offer should
 // be shown: only on Home, only while consent is still undecided, and only
 // until the user dismisses it with "not now" for this session.

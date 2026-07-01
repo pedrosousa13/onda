@@ -33,6 +33,8 @@ func (stubDir) Refresh(context.Context) ([]domain.Station, error)        { retur
 func (stubDir) RefreshWithProgress(context.Context, func(int64)) ([]domain.Station, error) {
 	return nil, nil
 }
+func (stubDir) ClearCorpus() error        { return nil }
+func (stubDir) CorpusSize() (int64, bool) { return 0, false }
 
 var errSample = errors.New("boom")
 
@@ -142,6 +144,18 @@ func TestDisableCatalogPersistsOff(t *testing.T) {
 	m2 := m.disableCatalog()
 	if m2.offlineCatalog != "off" || fs.savedCatalog != "off" {
 		t.Fatalf("expected off+persisted, got %q / %q", m2.offlineCatalog, fs.savedCatalog)
+	}
+}
+
+func TestClearCatalogCacheDisablesAndClears(t *testing.T) {
+	fs := &fakeStore{}
+	m := Model{view: viewSettings, offlineCatalog: "on", store: fs, dir: stubDir{}}
+	got := mustModel(m.updateSettings(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("9")}))
+	if got.offlineCatalog != "off" || fs.savedCatalog != "off" {
+		t.Fatalf("clear should set off+persist, got %q / %q", got.offlineCatalog, fs.savedCatalog)
+	}
+	if got.status == "" {
+		t.Fatal("expected a status message after clearing")
 	}
 }
 

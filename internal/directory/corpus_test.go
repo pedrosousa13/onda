@@ -26,6 +26,33 @@ func TestCorpusStoreRoundTrip(t *testing.T) {
 	}
 }
 
+func TestCorpusStoreDeleteAndSize(t *testing.T) {
+	s := NewCorpusStore(t.TempDir(), time.Hour)
+	in := []domain.Station{{Name: "Radio Eins", Country: "Germany", Votes: 42}}
+	if err := s.Save(in); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if n, ok := s.Size(); !ok || n <= 0 {
+		t.Fatalf("expected a positive size for saved corpus, got n=%d ok=%v", n, ok)
+	}
+	if err := s.Delete(); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, _, ok := s.Load(); ok {
+		t.Fatal("deleted corpus should not load")
+	}
+	if n, ok := s.Size(); ok || n != 0 {
+		t.Fatalf("deleted corpus should report no size, got n=%d ok=%v", n, ok)
+	}
+}
+
+func TestCorpusStoreDeleteMissingIsNotAnError(t *testing.T) {
+	s := NewCorpusStore(t.TempDir(), time.Hour)
+	if err := s.Delete(); err != nil {
+		t.Fatalf("deleting a missing corpus should not error, got %v", err)
+	}
+}
+
 func TestCorpusStoreMissingAndCorrupt(t *testing.T) {
 	dir := t.TempDir()
 	s := NewCorpusStore(dir, time.Hour)

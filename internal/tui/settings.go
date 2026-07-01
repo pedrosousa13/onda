@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/pedrosousa13/onda/internal/directory"
 )
 
 func (m Model) updateSettings(k tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -56,6 +57,8 @@ func (m Model) updateSettings(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			return m.enableCatalog()
 		}
+	case "9":
+		m = m.clearCatalogCache()
 	}
 	return m, nil
 }
@@ -88,7 +91,15 @@ func (m Model) viewSettings() string {
 	if catalogState == "" {
 		catalogState = "ask"
 	}
-	b.WriteString(row("8", "offline catalog", fmt.Sprintf("%s (%s)", catalogState, catalogSizeHint)) + "\n\n")
+	b.WriteString(row("8", "offline catalog", fmt.Sprintf("%s (%s)", catalogState, catalogSizeHint)) + "\n")
+
+	catalogCache := "not downloaded"
+	if m.dir != nil {
+		if n, ok := m.dir.CorpusSize(); ok {
+			catalogCache = directory.HumanBytes(n)
+		}
+	}
+	b.WriteString(row("9", "clear catalog cache", catalogCache) + "\n\n")
 
 	b.WriteString(m.st.Help.Render("  press a number to change · ") +
 		m.st.Key.Render("esc") + m.st.Help.Render(" back") + "\n")

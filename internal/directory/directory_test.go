@@ -3,6 +3,7 @@ package directory
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/pedrosousa13/onda/internal/domain"
 )
@@ -58,6 +59,26 @@ func TestSearchFallsBackToOnlineWhenNoCorpus(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].Name != "Radio Eins" {
 		t.Fatalf("want online result, got %+v", got)
+	}
+}
+
+func TestDirectoryClearCorpus(t *testing.T) {
+	d := &Directory{Corpus: NewCorpusStore(t.TempDir(), time.Hour)}
+	d.setCorpus([]domain.Station{{Name: "Radio Eins"}})
+	if err := d.Corpus.Save(d.snapshot()); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if _, ok := d.CorpusSize(); !ok {
+		t.Fatal("expected a cached dump before clearing")
+	}
+	if err := d.ClearCorpus(); err != nil {
+		t.Fatalf("ClearCorpus: %v", err)
+	}
+	if len(d.snapshot()) != 0 {
+		t.Fatalf("expected empty in-memory corpus after clearing, got %+v", d.snapshot())
+	}
+	if _, ok := d.CorpusSize(); ok {
+		t.Fatal("expected no cached dump after clearing")
 	}
 }
 

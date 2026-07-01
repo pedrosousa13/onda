@@ -87,3 +87,20 @@ func (s *CorpusStore) Save(stations []domain.Station) error {
 func (s *CorpusStore) Fresh(fetchedAt time.Time) bool {
 	return s.now().Sub(fetchedAt) <= s.ttl
 }
+
+// Delete removes the cached dump. A missing file is not an error.
+func (s *CorpusStore) Delete() error {
+	if err := os.Remove(s.path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+// Size returns the on-disk dump size in bytes, and whether it exists.
+func (s *CorpusStore) Size() (int64, bool) {
+	fi, err := os.Stat(s.path)
+	if err != nil {
+		return 0, false
+	}
+	return fi.Size(), true
+}

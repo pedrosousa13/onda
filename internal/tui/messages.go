@@ -116,6 +116,8 @@ type Searcher interface {
 	Initial(ctx context.Context) ([]domain.Station, error)
 	Refresh(ctx context.Context) ([]domain.Station, error)
 	RefreshWithProgress(ctx context.Context, onProgress func(downloaded int64)) ([]domain.Station, error)
+	ClearCorpus() error
+	CorpusSize() (int64, bool)
 }
 
 // TitleMsg builds a titleMsg from outside the package (used by the app event bridge).

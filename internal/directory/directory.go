@@ -56,6 +56,23 @@ func (d *Directory) LoadCorpus() bool {
 	return false
 }
 
+// ClearCorpus drops the in-memory corpus and deletes the on-disk dump.
+func (d *Directory) ClearCorpus() error {
+	d.setCorpus(nil)
+	if d.Corpus != nil {
+		return d.Corpus.Delete()
+	}
+	return nil
+}
+
+// CorpusSize returns the cached dump size in bytes and whether it exists.
+func (d *Directory) CorpusSize() (int64, bool) {
+	if d.Corpus == nil {
+		return 0, false
+	}
+	return d.Corpus.Size()
+}
+
 // base returns the corpus, falling back to the embedded starter list.
 func (d *Directory) base(ctx context.Context) ([]domain.Station, error) {
 	if s := d.snapshot(); len(s) > 0 {
