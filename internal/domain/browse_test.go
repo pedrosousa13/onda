@@ -57,6 +57,13 @@ func TestSortDescendingTrend(t *testing.T) {
 	}
 }
 
+func TestSortDescendingTrendFlipped(t *testing.T) {
+	s := Sort{Key: SortTrend, Flip: true}
+	if s.Descending() {
+		t.Errorf("Sort{Key: SortTrend, Flip: true}.Descending() = true; want false")
+	}
+}
+
 func TestSortLabelVotes(t *testing.T) {
 	s := Sort{Key: SortVotes, Flip: false}
 	if got := s.Label(); got != "votes ↓" {

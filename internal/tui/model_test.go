@@ -351,6 +351,20 @@ func TestMouseWheelMovesCursor(t *testing.T) {
 	}
 }
 
+func TestBrowseMenuIgnoresMouse(t *testing.T) {
+	m := Model{
+		view:        viewBrowseMenu,
+		browseLevel: 0,
+		cursor:      0,
+		facets:      axisMenu(),
+		stations:    []domain.Station{{Name: "a"}, {Name: "b"}, {Name: "c"}},
+	}
+	got := mustModel(m.Update(tea.MouseMsg{Button: tea.MouseButtonWheelDown}))
+	if got.cursor != 0 {
+		t.Fatalf("browse menu must ignore mouse wheel, got cursor %d", got.cursor)
+	}
+}
+
 func TestMouseClickSelectsThenPlays(t *testing.T) {
 	stations := make([]domain.Station, 5)
 	for i := range stations {

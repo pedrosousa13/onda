@@ -508,10 +508,14 @@ func (m Model) volumeBar() string {
 }
 
 func (m Model) footer() string {
+	escPair := [2]string{"esc", "home"}
+	if m.browseLevel == 2 {
+		escPair = [2]string{"esc", "back"}
+	}
 	pairs := [][2]string{
 		{"↑↓", "move"}, {"⏎", "play"}, {"s", "stop"}, {"+/-", "vol"},
 		{"[ ]", "quality"}, {"f", "★"}, {"F", "favs"}, {"/", "search"},
-		{"b", "browse"}, {"a", "add"}, {",", "settings"}, {"esc", "home"}, {"q", "quit"},
+		{"b", "browse"}, {"a", "add"}, {",", "settings"}, escPair, {"q", "quit"},
 	}
 	if m.browseLevel == 2 {
 		pairs = append(pairs, [2]string{"o", "sort"}, [2]string{"O", "reverse"})

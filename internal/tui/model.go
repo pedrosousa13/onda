@@ -379,7 +379,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // add, settings) keep their keyboard focus and ignore the mouse.
 func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	switch m.view {
-	case viewSearch, viewAdd, viewSettings:
+	case viewSearch, viewAdd, viewSettings, viewBrowseMenu:
 		return m, nil
 	}
 	switch msg.Button {
@@ -811,6 +811,8 @@ func (m Model) openBrowse() (tea.Model, tea.Cmd) {
 	m.facets = axisMenu()
 	m.cursor = 0
 	m.crumb = "browse"
+	m.stations = nil
+	m.hoverIdx = -1
 	return m, nil
 }
 
