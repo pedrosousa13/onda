@@ -35,6 +35,18 @@ func (stubDir) RefreshWithProgress(context.Context, func(int64)) ([]domain.Stati
 }
 func (stubDir) ClearCorpus() error        { return nil }
 func (stubDir) CorpusSize() (int64, bool) { return 0, false }
+func (stubDir) Countries(context.Context) ([]domain.Facet, error) {
+	return nil, nil
+}
+func (stubDir) Tags(context.Context) ([]domain.Facet, error) {
+	return nil, nil
+}
+func (stubDir) Languages(context.Context) ([]domain.Facet, error) {
+	return nil, nil
+}
+func (stubDir) StationsBy(context.Context, domain.Axis, string, domain.Sort) ([]domain.Station, error) {
+	return nil, nil
+}
 
 var errSample = errors.New("boom")
 
