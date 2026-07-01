@@ -21,6 +21,7 @@ const (
 	viewFavorites
 	viewAdd
 	viewSettings
+	viewRecents
 )
 
 // playbackPhase tracks what the now-playing panel should honestly report.
@@ -36,10 +37,14 @@ const (
 // connectTimeout marks a play attempt as failed if it never starts playing.
 const connectTimeout = 12 * time.Second
 
+// homeRecentsCap bounds the "recent" section shown above favorites on Home.
+const homeRecentsCap = 5
+
 type Player interface {
 	Play(url string) error
 	Stop() error
 	Volume(pct int) error
+	SetNormalize(on bool) error
 }
 
 // Store is the persistence slice the TUI needs.
@@ -54,36 +59,44 @@ type Store interface {
 	SaveHistory(bool) error
 	SaveTheme(string) error
 	SaveUpdateCheck(bool) error
+	SaveLiveSearch(bool) error
+	SaveVolume(int) error
+	SaveNormalize(bool) error
+	Recents() ([]domain.Station, error)
+	AddRecent(domain.Station) error
+	ClearRecents() error
 }
 
 type Model struct {
-	dir       Searcher
-	player    Player
-	store     Store
-	view      view
-	stations  []domain.Station
-	cursor    int
-	hoverIdx  int // station row under the mouse, -1 if none
-	status    string
-	nowTitle  string
-	playing   domain.Station
-	varIdx    int // index into playing.Variants currently streaming
-	isPlaying bool
+	dir         Searcher
+	player      Player
+	store       Store
+	view        view
+	stations    []domain.Station
+	cursor      int
+	hoverIdx    int // station row under the mouse, -1 if none
+	status      string
+	nowTitle    string
+	playing     domain.Station
+	varIdx      int // index into playing.Variants currently streaming
+	isPlaying   bool
 	phase       playbackPhase
 	playErr     string // message shown when phase == phaseFailed
 	playAttempt int    // monotonic; guards stale connect timeouts
-	quality   domain.QualityPref
-	tracking  string
-	history   bool
-	volume    int
-	themeName string
-	st        Styles
-	width     int
-	height    int
-	favKeys   map[string]bool
-	sp        spinner.Model
-	loading   bool
-	crumb     string
+	quality     domain.QualityPref
+	tracking    string
+	history     bool
+	volume      int
+	normalize   bool
+	themeName   string
+	st          Styles
+	width       int
+	height      int
+	favKeys     map[string]bool
+	homeRecents []domain.Station // leading "recent" section on Home (opt-in, capped)
+	sp          spinner.Model
+	loading     bool
+	crumb       string
 
 	update         update.Status
 	updateDismiss  bool
@@ -92,15 +105,16 @@ type Model struct {
 	version        string // build version, for the update check
 	updateCacheDir string // where update-cache.json lives
 
-	search    textinput.Model
-	searchSeq int // live-search debounce generation
-	addName   textinput.Model
-	addURL    textinput.Model
-	addBr     textinput.Model
-	addFocus  int // 0=name, 1=url, 2=bitrate
+	search     textinput.Model
+	searchSeq  int  // live-search debounce generation
+	liveSearch bool // search as you type; off → enter-to-search
+	addName    textinput.Model
+	addURL     textinput.Model
+	addBr      textinput.Model
+	addFocus   int // 0=name, 1=url, 2=bitrate
 }
 
-func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck bool, version, updateCacheDir string) Model {
+func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking string, history bool, theme string, updateCheck, liveSearch bool, volume int, normalize bool, version, updateCacheDir string) Model {
 	search := textinput.New()
 	search.Placeholder = "search stations, country, or genre…"
 	name := textinput.New()
@@ -116,19 +130,25 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 	m := Model{
 		dir: dir, player: p, store: st,
 		quality: quality, tracking: tracking, history: history,
-		volume: 100, themeName: t.Name, st: newStyles(t),
+		volume: clampVolume(volume), normalize: normalize, themeName: t.Name, st: newStyles(t),
 		width: 80, height: 24, favKeys: map[string]bool{},
 		hoverIdx: -1,
 		sp:       sp, view: viewHome, crumb: "home",
 		updateCheck: updateCheck, version: version, updateCacheDir: updateCacheDir,
-		search: search, addName: name, addURL: url, addBr: br,
+		liveSearch: liveSearch,
+		search:     search, addName: name, addURL: url, addBr: br,
 	}
-	// Seed Home with favorites; if there are none, Init fetches a Popular preview.
+	// Seed Home: opt-in recents on top, then favorites; if there are no
+	// favorites, Init fetches a Popular preview (recents stay pinned on top).
 	if st != nil {
-		if favs, err := st.Favorites(); err == nil && len(favs) > 0 {
-			m.stations = favs
-			m.markFavorites()
-		} else {
+		m.homeRecents = m.recentsForHome()
+		favs, err := st.Favorites()
+		if err != nil {
+			favs = nil
+		}
+		m.stations = append(append([]domain.Station{}, m.homeRecents...), favs...)
+		m.markFavorites()
+		if len(favs) == 0 {
 			m.loading = true
 		}
 	} else {
@@ -164,7 +184,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case stationsMsg:
 		m.loading = false
-		m.stations = msg.stations
+		if m.view == viewHome {
+			// Home's Popular preview loads async; keep the recent section pinned on top.
+			m.stations = append(append([]domain.Station{}, m.homeRecents...), msg.stations...)
+		} else {
+			m.stations = msg.stations
+		}
 		m.cursor = 0
 		m.markFavorites()
 		return m, nil
@@ -211,7 +236,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case searchDebounceMsg:
 		// Only the latest keystroke's tick, still in the search view, searches.
-		if m.view != viewSearch || msg.seq != m.searchSeq {
+		// A toggle to enter-to-search mid-type can leave a tick in flight.
+		if !m.liveSearch || m.view != viewSearch || msg.seq != m.searchSeq {
 			return m, nil
 		}
 		q := strings.TrimSpace(m.search.Value())
@@ -272,6 +298,26 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 // stationAtY maps a screen row to a visible station index, or -1 if the row
 // isn't over a station. Geometry mirrors viewList/viewHome layout.
 func (m Model) stationAtY(y int) int {
+	// Home with a pinned "recent" section on top: two sub-lists, distinct geometry.
+	if recN := m.homeRecentsN(); recN > 0 {
+		listRows := m.height - 14
+		if listRows < 3 {
+			listRows = 3
+		}
+		dispRecN, favStart, favEnd, _ := m.homeFavWindow(listRows)
+		const recStartY = 11 // header(2)+blank(1)+panel(5)+hint(1)+blank(1)+recent-label(1)
+		if y >= recStartY && y < recStartY+dispRecN {
+			return y - recStartY
+		}
+		favRowStartY := recStartY + dispRecN + 1 // +1 for the favorites/popular label
+		if j := favStart + (y - favRowStartY); y >= favRowStartY && j >= favStart && j < favEnd {
+			if idx := recN + j; idx < len(m.stations) {
+				return idx
+			}
+		}
+		return -1
+	}
+
 	rowStartY := 3 // header(2) + blank(1)
 	listRows := m.height - chromeHeight
 	if m.view == viewHome {
@@ -347,6 +393,12 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "F":
 		return m.showFavorites()
+	case "r":
+		return m.showRecents()
+	case "c":
+		if m.view == viewRecents {
+			return m.clearRecents()
+		}
 	case "p", "P":
 		m.view = viewBrowse
 		m.crumb = "popular"
@@ -368,19 +420,53 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// goHome returns to the Home view: favorites if any, else a Popular preview.
+// goHome returns to the Home view: opt-in recents on top, then favorites if any,
+// else a Popular preview.
 func (m Model) goHome() (tea.Model, tea.Cmd) {
 	m.view = viewHome
 	m.crumb = "home"
+	m.cursor = 0
+	m.homeRecents = m.recentsForHome()
 	if m.store != nil {
 		if favs, err := m.store.Favorites(); err == nil && len(favs) > 0 {
-			m.stations = favs
-			m.cursor = 0
+			m.stations = append(append([]domain.Station{}, m.homeRecents...), favs...)
 			m.markFavorites()
 			return m, nil
 		}
 	}
-	return m.load(popularCmd(m.dir)) // no favorites → Popular preview
+	// No favorites → keep recents pinned and load a Popular preview for the rest.
+	m.stations = append([]domain.Station{}, m.homeRecents...)
+	m.markFavorites()
+	return m.load(popularCmd(m.dir))
+}
+
+// recentsForHome returns the capped, newest-first play history shown as the
+// "recent" section on Home, or nil when the user hasn't opted into history.
+func (m Model) recentsForHome() []domain.Station {
+	if !m.history || m.store == nil {
+		return nil
+	}
+	rec, err := m.store.Recents()
+	if err != nil || len(rec) == 0 {
+		return nil
+	}
+	if len(rec) > homeRecentsCap {
+		rec = rec[:homeRecentsCap]
+	}
+	return rec
+}
+
+// homeRecentsN is the number of leading rows in m.stations that make up the
+// Home "recent" section. Zero unless we're on Home with recorded history.
+func (m Model) homeRecentsN() int {
+	if m.view != viewHome {
+		return 0
+	}
+	n := len(m.homeRecents)
+	if n > len(m.stations) {
+		n = len(m.stations)
+	}
+	return n
 }
 
 func (m Model) playSelected() (tea.Model, tea.Cmd) {
@@ -396,6 +482,7 @@ func (m Model) playSelected() (tea.Model, tea.Cmd) {
 		_ = m.player.Play(v.URL)
 		m.nowTitle = ""
 		m.status = "playing " + m.playing.Name + " · " + v.Quality()
+		m.recordRecent(st)
 		return m.startConnecting()
 	}
 
@@ -406,10 +493,19 @@ func (m Model) playSelected() (tea.Model, tea.Cmd) {
 		m.isPlaying = true
 		m.nowTitle = ""
 		m.status = "playing " + st.Name + " · " + v.Quality()
+		m.recordRecent(st)
 		return m.startConnecting()
 	}
 	m.status = "no playable stream for " + st.Name
 	return m, nil
+}
+
+// recordRecent appends the station to the local play history, but only when the
+// user has opted in (history setting). Stored locally only — see store.AddRecent.
+func (m Model) recordRecent(st domain.Station) {
+	if m.history && m.store != nil {
+		_ = m.store.AddRecent(st)
+	}
 }
 
 // startConnecting enters the connecting phase and schedules a stale-guarded
@@ -454,16 +550,24 @@ func indexOfVariant(vs []domain.StreamVariant, target domain.StreamVariant) int 
 }
 
 func (m Model) changeVolume(delta int) (tea.Model, tea.Cmd) {
-	m.volume += delta
-	if m.volume < 0 {
-		m.volume = 0
-	}
-	if m.volume > 100 {
-		m.volume = 100
-	}
+	m.volume = clampVolume(m.volume + delta)
 	_ = m.player.Volume(m.volume)
+	if m.store != nil {
+		_ = m.store.SaveVolume(m.volume)
+	}
 	m.status = "volume " + strconv.Itoa(m.volume) + "%"
 	return m, nil
+}
+
+// clampVolume bounds a volume to the 0–100 range.
+func clampVolume(v int) int {
+	if v < 0 {
+		return 0
+	}
+	if v > 100 {
+		return 100
+	}
+	return v
 }
 
 func (m Model) toggleFavorite() (Model, tea.Cmd) {
@@ -493,6 +597,35 @@ func (m Model) showFavorites() (tea.Model, tea.Cmd) {
 	m.stations = favs
 	m.cursor = 0
 	m.markFavorites()
+	return m, nil
+}
+
+// showRecents opens the locally-stored play history (newest first).
+func (m Model) showRecents() (tea.Model, tea.Cmd) {
+	if m.store == nil {
+		return m, nil
+	}
+	recents, err := m.store.Recents()
+	if err != nil {
+		m.status = "error loading recents: " + err.Error()
+		return m, nil
+	}
+	m.view = viewRecents
+	m.crumb = "recents"
+	m.stations = recents
+	m.cursor = 0
+	m.markFavorites()
+	return m, nil
+}
+
+// clearRecents wipes the local play history.
+func (m Model) clearRecents() (tea.Model, tea.Cmd) {
+	if m.store != nil {
+		_ = m.store.ClearRecents()
+	}
+	m.stations = nil
+	m.cursor = 0
+	m.status = "cleared play history"
 	return m, nil
 }
 

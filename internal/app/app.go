@@ -34,6 +34,11 @@ func Run() error {
 	if err != nil {
 		return err
 	}
+	if cfg.Volume < 0 {
+		cfg.Volume = 0
+	} else if cfg.Volume > 100 {
+		cfg.Volume = 100
+	}
 
 	showFirstRunNoticeOnce(st)
 
@@ -47,16 +52,17 @@ func Run() error {
 		Cache:   directory.NewCache(cacheDir, 24*time.Hour),
 	}
 
-	p, err := player.New(player.Options{})
+	p, err := player.New(player.Options{Normalize: cfg.Normalize})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "onda needs mpv for playback.")
 		fmt.Fprintln(os.Stderr, "Install it (e.g. `brew install mpv`, or `scoop install mpv` on Windows) and try again.")
 		return err
 	}
 	defer p.Close()
+	_ = p.Volume(cfg.Volume) // restore the last session's volume
 
 	model := tui.New(dir, p, st, domain.QualityPref(cfg.Quality), cfg.Tracking,
-		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, version, cacheDir)
+		cfg.HistoryEnabled, cfg.Theme, cfg.UpdateCheck, cfg.LiveSearch, cfg.Volume, cfg.Normalize, version, cacheDir)
 	prog := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseAllMotion())
 
 	// Bridge player events into the TUI.

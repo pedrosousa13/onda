@@ -118,6 +118,42 @@ func (s *Store) AddCustom(st domain.Station) error {
 	return s.writeList("custom.json", append(list, st))
 }
 
+// recentsCap bounds the locally-stored play history.
+const recentsCap = 50
+
+func (s *Store) Recents() ([]domain.Station, error) { return s.readList("recents.json") }
+
+// AddRecent prepends st to the play history, most-recent-first, de-duplicated by
+// station key and capped at recentsCap. Stored as plain JSON in the config dir
+// like favorites — portable and local-only. Callers gate this on the user's
+// opt-in history setting.
+func (s *Store) AddRecent(st domain.Station) error {
+	list, err := s.Recents()
+	if err != nil {
+		return err
+	}
+	out := make([]domain.Station, 0, len(list)+1)
+	out = append(out, st)
+	for _, e := range list {
+		if stationKey(e) != stationKey(st) {
+			out = append(out, e)
+		}
+	}
+	if len(out) > recentsCap {
+		out = out[:recentsCap]
+	}
+	return s.writeList("recents.json", out)
+}
+
+// ClearRecents deletes the play-history file.
+func (s *Store) ClearRecents() error {
+	err := os.Remove(filepath.Join(s.dir, "recents.json"))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
+}
+
 func (s *Store) MarkerPath(name string) string { return filepath.Join(s.dir, "."+name) }
 
 func (s *Store) IsFavorite(st domain.Station) (bool, error) {
@@ -169,11 +205,38 @@ func (s *Store) SaveUpdateCheck(v bool) error {
 	return s.SaveConfig(c)
 }
 
+func (s *Store) SaveLiveSearch(v bool) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.LiveSearch = v
+	return s.SaveConfig(c)
+}
+
 func (s *Store) SaveTheme(theme string) error {
 	c, err := s.LoadConfig()
 	if err != nil {
 		return err
 	}
 	c.Theme = theme
+	return s.SaveConfig(c)
+}
+
+func (s *Store) SaveVolume(v int) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.Volume = v
+	return s.SaveConfig(c)
+}
+
+func (s *Store) SaveNormalize(v bool) error {
+	c, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	c.Normalize = v
 	return s.SaveConfig(c)
 }

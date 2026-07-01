@@ -1,6 +1,6 @@
 module github.com/pedrosousa13/onda
 
-go 1.24.2
+go 1.25.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/minio/selfupdate v0.6.0
-	golang.org/x/mod v0.29.0
+	golang.org/x/mod v0.37.0
 )
 
 require (

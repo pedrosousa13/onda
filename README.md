@@ -19,15 +19,17 @@ or rebroadcast by us. (*onda* is "wave" in Portuguese, Spanish, and Italian.)
 - **Silent by default** — popularity tracking defaults to `never`, so `onda`
   reports nothing about what you listen to. You can opt in (`opt-in`/`opt-out`)
   in settings to contribute to community rankings if you want.
-- **Local-only data** — favorites, custom stations, and config never leave your
-  machine. No telemetry.
+- **Local-only data** — favorites, custom stations, config, and (opt-in) play
+  history never leave your machine. No telemetry.
 - **Public-domain data** — station data comes from the public-domain
   [Radio Browser](https://www.radio-browser.info) project plus a bundled CC0 list.
 
 Streaming inherently exposes your IP to the broadcaster, and searches — including
 the as-you-type queries sent while you search — go to Radio Browser mirrors, the
 same as any internet-radio app. `onda` debounces those queries (one per typing
-pause, not per keystroke) and tells you this on first run.
+pause, not per keystroke) and tells you this on first run. Prefer not to send
+anything as you type? Turn **live search** off in settings and `onda` queries
+only when you press <kbd>⏎</kbd>.
 
 ## Install
 
@@ -102,6 +104,8 @@ onda
 | `[` / `]` | Higher / lower bitrate (when a station offers several) |
 | `f` | Toggle favorite on selected station |
 | `F` | Show favorites |
+| `r` | Recently played (when play history is on) |
+| `c` | Clear play history (in the recents view) |
 | `p` | Popular (top-voted worldwide) |
 | `esc` | Back to Home |
 | `/` | Search |
@@ -138,14 +142,22 @@ locally and appear alongside everything else.
 
 **Settings** — `1` cycles audio quality (highest / balanced / lowest), `2` cycles
 popularity tracking (never / opt-in / opt-out), `3` toggles play history, `4` cycles
-the **theme**, `5` toggles the daily update check; `esc` to go back. Changes are
-saved immediately.
+the **theme**, `5` toggles the daily update check, `6` toggles **live search**
+(search as you type; off → enter-to-search), `7` toggles **loudness
+normalization** (evens out volume jumps between stations; off by default, applies
+live); `esc` to go back. Changes are saved immediately.
+
+**Recently played** — when **play history** is on (settings `3`, off by default),
+the stations you play are remembered locally and listed under `r` (newest first,
+de-duplicated). The latest few also surface as a **recent** section on Home, above
+your favorites. It never leaves your machine; `c` in the recents view clears it.
 
 When a station offers multiple bitrates, `onda` auto-picks per your quality
 setting (default: highest).
 
-On launch you land on **Home** — your now-playing panel plus your favorites (or a
-**Popular** preview, the top-voted stations worldwide, until you've saved any).
+On launch you land on **Home** — your now-playing panel, a **recent** section when
+play history is on, plus your favorites (or a **Popular** preview, the top-voted
+stations worldwide, until you've saved any).
 From anywhere: `esc` returns Home, `p` opens the full Popular list, `F` favorites,
 `/` search. Popular comes from Radio Browser's open ranking — reading it reports
 nothing about you.
@@ -169,8 +181,15 @@ Files:
 
 - `config.toml` — `quality` (highest|balanced|lowest), `tracking`
   (never|opt-in|opt-out), `history_enabled`, `theme`, `update_check`
-  (daily update check; `true` by default)
+  (daily update check; `true` by default), `live_search` (search as you type;
+  `true` by default — set `false` for enter-to-search), `volume` (0–100,
+  restored on launch), `normalize` (loudness normalization; `false` by default)
 - `favorites.json`, `custom.json` — your favorites and added stations
+- `recents.json` — your play history (only written when `history_enabled` is on)
+
+Everything onda persists lives in this one directory in plain TOML/JSON, so you
+can symlink or sync it with your dotfiles to carry your config and favorites
+across machines.
 
 Cached Radio Browser results live under your OS cache directory
 (`os.UserCacheDir`, e.g. `~/.cache/onda/` on Linux) with a 24-hour TTL; stale
@@ -198,7 +217,7 @@ isn't possible without canonical IDs the source doesn't provide.
 
 ## Building from source
 
-Requires Go 1.24+ and `mpv`.
+Requires Go 1.25+ and `mpv`.
 
 ```sh
 git clone https://github.com/pedrosousa13/onda

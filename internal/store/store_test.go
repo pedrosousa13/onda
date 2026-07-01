@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -17,6 +18,40 @@ func TestConfigDefaults(t *testing.T) {
 	}
 	if c.HistoryEnabled {
 		t.Fatal("history must default to disabled")
+	}
+	if c.Normalize {
+		t.Fatal("loudness normalization must default to disabled")
+	}
+	if c.Volume != 100 {
+		t.Fatalf("default volume should be 100, got %d", c.Volume)
+	}
+}
+
+func TestNormalizeRoundTrip(t *testing.T) {
+	s := &Store{dir: t.TempDir()}
+	if err := s.SaveNormalize(true); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Normalize {
+		t.Fatal("normalize did not round-trip as true")
+	}
+}
+
+func TestVolumeRoundTrip(t *testing.T) {
+	s := &Store{dir: t.TempDir()}
+	if err := s.SaveVolume(37); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Volume != 37 {
+		t.Fatalf("volume did not round-trip, got %d", got.Volume)
 	}
 }
 
@@ -76,6 +111,51 @@ func TestFavoritesRoundTrip(t *testing.T) {
 	favs, _ = s.Favorites()
 	if len(favs) != 0 {
 		t.Fatal("favorite was not removed")
+	}
+}
+
+func TestRecentsRoundTrip(t *testing.T) {
+	s := &Store{dir: t.TempDir()}
+	a := domain.Station{Name: "A", Homepage: "a"}
+	b := domain.Station{Name: "B", Homepage: "b"}
+	_ = s.AddRecent(a)
+	_ = s.AddRecent(b)
+	_ = s.AddRecent(a) // re-play A → moves to front, no duplicate
+
+	got, err := s.Recents()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("want 2 recents after dedupe, got %d", len(got))
+	}
+	if got[0].Name != "A" || got[1].Name != "B" {
+		t.Fatalf("recents should be most-recent-first deduped, got %+v", got)
+	}
+
+	if err := s.ClearRecents(); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = s.Recents(); len(got) != 0 {
+		t.Fatalf("recents not cleared, got %d", len(got))
+	}
+	// Clearing again (no file) is a no-op, not an error.
+	if err := s.ClearRecents(); err != nil {
+		t.Fatalf("clearing absent recents should be a no-op, got %v", err)
+	}
+}
+
+func TestRecentsCap(t *testing.T) {
+	s := &Store{dir: t.TempDir()}
+	for i := 0; i < recentsCap+10; i++ {
+		_ = s.AddRecent(domain.Station{Name: fmt.Sprintf("s%d", i)})
+	}
+	got, _ := s.Recents()
+	if len(got) != recentsCap {
+		t.Fatalf("want cap %d, got %d", recentsCap, len(got))
+	}
+	if got[0].Name != fmt.Sprintf("s%d", recentsCap+9) {
+		t.Fatalf("newest should be first, got %s", got[0].Name)
 	}
 }
 
