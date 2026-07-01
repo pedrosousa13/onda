@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/pedrosousa13/onda/compare/v1.4.0...v1.5.0) (2026-07-01)
+
+
+### Features
+
+* **browse:** browse the offline catalog by country / genre / language, with sortable results ([#36](https://github.com/pedrosousa13/onda/issues/36)) ([d1f5556](https://github.com/pedrosousa13/onda/commit/d1f5556db6072c21c8844861b61836e7aeed4c1d))
+* opt-in offline station catalog with background download + progress ([#37](https://github.com/pedrosousa13/onda/issues/37)) ([ec52fda](https://github.com/pedrosousa13/onda/commit/ec52fdaa95ae96151bd692c015c6cc17db456b60))
+
 ## [1.4.0](https://github.com/pedrosousa13/onda/compare/v1.3.0...v1.4.0) (2026-07-01)
 
 
