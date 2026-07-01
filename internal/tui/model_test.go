@@ -108,12 +108,12 @@ func TestSettingsToggleNormalize(t *testing.T) {
 }
 
 func TestNewRestoresVolume(t *testing.T) {
-	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 42, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 42, false, false, "1.0.0", t.TempDir())
 	if m.volume != 42 {
 		t.Fatalf("New should restore the saved volume, got %d", m.volume)
 	}
 	// Out-of-range values from a hand-edited config are clamped.
-	m = New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 150, false, "1.0.0", t.TempDir())
+	m = New(nil, nil, nil, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 150, false, false, "1.0.0", t.TempDir())
 	if m.volume != 100 {
 		t.Fatalf("New should clamp volume to 100, got %d", m.volume)
 	}
@@ -377,7 +377,7 @@ func TestHomeSeedsRecentsAboveFavorites(t *testing.T) {
 		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}, {Name: "FIP", Homepage: "fip.fr"}},
 		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
 	}
-	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, false, "1.0.0", t.TempDir())
 	if got := m.homeRecentsN(); got != 2 {
 		t.Fatalf("homeRecentsN = %d, want 2", got)
 	}
@@ -394,7 +394,7 @@ func TestHomeNoRecentsWhenHistoryOff(t *testing.T) {
 		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}},
 		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
 	}
-	m := New(nil, nil, fs, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, fs, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, false, "1.0.0", t.TempDir())
 	if got := m.homeRecentsN(); got != 0 {
 		t.Fatalf("history off → homeRecentsN = %d, want 0", got)
 	}
@@ -409,7 +409,7 @@ func TestHomeRecentsCappedAtFive(t *testing.T) {
 		rec = append(rec, domain.Station{Name: fmt.Sprintf("S%d", i), Homepage: fmt.Sprintf("s%d", i)})
 	}
 	fs := &fakeStore{recents: rec, favs: []domain.Station{{Name: "NTS"}}}
-	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, false, "1.0.0", t.TempDir())
 	if got := m.homeRecentsN(); got != homeRecentsCap {
 		t.Fatalf("home recents = %d, want cap %d", got, homeRecentsCap)
 	}
@@ -420,13 +420,13 @@ func TestHomeRendersRecentLabel(t *testing.T) {
 		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}},
 		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
 	}
-	on := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	on := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, false, "1.0.0", t.TempDir())
 	on.width, on.height = 76, 24
 	if !strings.Contains(on.View(), "recent") {
 		t.Fatal("home with history on should render a 'recent' section label")
 	}
 
-	off := New(nil, nil, fs, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	off := New(nil, nil, fs, domain.QualityHighest, "never", false, "catppuccin-mocha", true, true, 100, false, false, "1.0.0", t.TempDir())
 	off.width, off.height = 76, 24
 	if strings.Contains(off.View(), "recent") {
 		t.Fatal("home with history off should not render a 'recent' section label")
@@ -438,7 +438,7 @@ func TestHomeStationAtYMapsBothSections(t *testing.T) {
 		recents: []domain.Station{{Name: "KEXP", Homepage: "kexp.org"}, {Name: "FIP", Homepage: "fip.fr"}},
 		favs:    []domain.Station{{Name: "NTS", Homepage: "nts.live"}},
 	}
-	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, "1.0.0", t.TempDir())
+	m := New(nil, nil, fs, domain.QualityHighest, "never", true, "catppuccin-mocha", true, true, 100, false, false, "1.0.0", t.TempDir())
 	m.width, m.height = 76, 24
 	// Layout: "recent" label at y=10, recents rows at y=11,12, "favorites" at y=13, first fav at y=14.
 	if got := m.stationAtY(11); got != 0 {
