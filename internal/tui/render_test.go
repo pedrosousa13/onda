@@ -246,21 +246,31 @@ func TestRenderFacetRowWideNameNeverExceedsWidth(t *testing.T) {
 }
 
 // TestViewNeverExceedsTerminalWidth is the belt-and-suspenders guarantee: no
-// matter how wide a row's content is (long meta on a narrow terminal, dirty
-// data), View() must never emit a line wider than the terminal — a wrapped
-// line desyncs Bubble Tea's renderer.
+// matter how wide a line's content is (long meta on a narrow terminal, dirty
+// data, complex-script crumb or station name), View() must never emit a line
+// wider than the terminal — a wrapped line desyncs Bubble Tea's renderer.
+// Measured with the conservative dispWidth (what the terminal may actually
+// draw), NOT lipgloss.Width — lipgloss under-counts complex scripts, which is
+// the whole bug: a line lipgloss thinks fits still overflows and wraps.
 func TestViewNeverExceedsTerminalWidth(t *testing.T) {
-	m := Model{
-		width: 24, height: 24, st: newStyles(themeByName("catppuccin-mocha")),
-		favKeys: map[string]bool{}, hoverIdx: -1, view: viewBrowse, crumb: "test",
-	}
-	m.stations = []domain.Station{
-		{Name: "Some Very Long Station Name Indeed", Country: "The United Kingdom Of Great Britain And Northern Ireland", Votes: 304300, Trend: 3},
-		{Name: wideName, Country: "Japan", Votes: 1200, Trend: 5},
-	}
-	for _, ln := range strings.Split(m.View(), "\n") {
-		if w := lipgloss.Width(ln); w > m.width {
-			t.Fatalf("View line width %d exceeds terminal width %d: %q", w, m.width, ln)
+	// A Tamil crumb flows into the header, and a Tamil station into the list —
+	// both are lines that lipgloss under-measures and the backstop must cap.
+	const tamilName = "Tube Tamil FM Radio டியூப் தமிழ் எஃப்.எம் பண்பலை ரேடியோ"
+	for _, w := range []int{24, 40, 60, 100} {
+		m := Model{
+			width: w, height: 24, st: newStyles(themeByName("catppuccin-mocha")),
+			favKeys: map[string]bool{}, hoverIdx: -1, view: viewBrowse,
+			crumb: "தமிழ் மொழி · votes",
+		}
+		m.stations = []domain.Station{
+			{Name: "Some Very Long Station Name Indeed", Country: "The United Kingdom Of Great Britain And Northern Ireland", Votes: 304300, Trend: 3},
+			{Name: wideName, Country: "Japan", Votes: 1200, Trend: 5},
+			{Name: tamilName, Country: "Sri Lanka", Votes: 4600},
+		}
+		for _, ln := range strings.Split(m.View(), "\n") {
+			if dw := dispWidth(stripANSI(ln)); dw > m.width {
+				t.Fatalf("width %d: View line conservative width %d exceeds terminal width %d: %q", w, dw, m.width, stripANSI(ln))
+			}
 		}
 	}
 }
@@ -284,6 +294,39 @@ func TestDispWidthConservative(t *testing.T) {
 	}
 	if got, want := dispWidth(tamil), 2*utf8.RuneCountInString(tamil); got != want {
 		t.Fatalf("complex-script dispWidth = %d, want 2 cells/codepoint = %d", got, want)
+	}
+}
+
+// TestClampWidthConservativeAndANSIAware verifies the View-level backstop caps
+// lines by the terminal-real (dispWidth) measure, keeps ANSI escapes out of the
+// count, and doesn't let a severed styled span bleed color.
+func TestClampWidthConservativeAndANSIAware(t *testing.T) {
+	// ANSI codes occupy no columns: a styled 5-char string survives a width-5 cap.
+	styled := "\x1b[31mhello\x1b[0m"
+	if got := clampWidth(styled, 5); got != styled {
+		t.Fatalf("styled fit was altered: %q", got)
+	}
+
+	// A complex-script line lipgloss under-measures must be cut to <= w by dispWidth.
+	tamil := "தமிழ் மொழி பண்பலை ரேடியோ ஒலிபரப்பு"
+	if lipgloss.Width(tamil) <= 8 {
+		// sanity: lipgloss thinks it fits — which is exactly why MaxWidth failed.
+	}
+	out := clampWidth(tamil, 8)
+	if dw := dispWidth(stripANSI(out)); dw > 8 {
+		t.Fatalf("clamped complex-script width = %d, want <= 8: %q", dw, stripANSI(out))
+	}
+
+	// Cutting a colored line appends a reset so color can't bleed downstream.
+	if got := clampWidth("\x1b[31m"+strings.Repeat("x", 20), 5); !strings.HasSuffix(got, "\x1b[0m") {
+		t.Fatalf("cut styled line missing trailing reset: %q", got)
+	}
+
+	// Per-line: each line of a multi-line block is capped independently.
+	for _, ln := range strings.Split(clampWidth("aaaaaaaa\nbbbb\n"+tamil, 4), "\n") {
+		if dw := dispWidth(stripANSI(ln)); dw > 4 {
+			t.Fatalf("multiline clamp left width %d > 4: %q", dw, ln)
+		}
 	}
 }
 

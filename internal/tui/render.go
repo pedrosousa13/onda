@@ -561,14 +561,67 @@ func windowBounds(cursor, n, rows int) (int, int) {
 	return start, start + rows
 }
 
-// clampWidth hard-caps every line of s to w display columns (ANSI-aware), so a
-// stray over-wide line can never soft-wrap in the terminal and desync Bubble
-// Tea's line-diff renderer. A last-resort guarantee on top of per-row truncation.
+// clampWidth hard-caps every line of s to w display columns, so a stray
+// over-wide line can never soft-wrap in the terminal and desync Bubble Tea's
+// line-diff renderer. This is the single authoritative backstop on top of
+// per-row truncation.
+//
+// It measures conservatively (dispWidth) rather than with lipgloss's
+// Unicode-correct width: a complex-script line (Tamil, Devanagari, …) can be
+// DRAWN wider than lipgloss reports, so lipgloss.MaxWidth would let it slip
+// through — exactly the wrap that desyncs the renderer. Over-cutting such a
+// line is the safe direction.
 func clampWidth(s string, w int) string {
 	if w <= 0 {
 		return s
 	}
-	return lipgloss.NewStyle().MaxWidth(w).Render(s)
+	lines := strings.Split(s, "\n")
+	for i, ln := range lines {
+		lines[i] = clampLine(ln, w)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// clampLine truncates one line to at most w display columns, measured with the
+// conservative dispWidth and skipping ANSI SGR escape sequences (which occupy
+// no columns). If it has to cut, it appends a reset so a severed styled span
+// can't bleed color into the rest of the frame.
+func clampLine(s string, w int) string {
+	var b strings.Builder
+	width := 0
+	runes := []rune(s)
+	cut := false
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		if r == 0x1b { // ESC — copy the whole escape sequence verbatim, uncounted
+			j := i + 1
+			if j < len(runes) && runes[j] == '[' { // CSI: ESC '[' … final byte 0x40–0x7e
+				j++
+				for j < len(runes) && (runes[j] < 0x40 || runes[j] > 0x7e) {
+					j++
+				}
+				if j < len(runes) {
+					j++ // include the final byte
+				}
+			}
+			for k := i; k < j; k++ {
+				b.WriteRune(runes[k])
+			}
+			i = j - 1
+			continue
+		}
+		rw := runeCells(r)
+		if width+rw > w {
+			cut = true
+			break
+		}
+		b.WriteRune(r)
+		width += rw
+	}
+	if cut {
+		b.WriteString("\x1b[0m")
+	}
+	return b.String()
 }
 
 // runeCells is a CONSERVATIVE cell count for one rune: wide glyphs (CJK) keep
