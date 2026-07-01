@@ -8,6 +8,15 @@ or rebroadcast by us. (*onda* is "wave" in Portuguese, Spanish, and Italian.)
 > Status: early v1. The bundled offline station list is a small starter set
 > pending a full public-domain import (see [Data sources](#data-sources--credits)).
 
+<img width="1455" height="421" alt="CleanShot 2026-07-01 at 15 52 56" src="https://github.com/user-attachments/assets/f2705b01-04d2-4590-8aa9-4a6a220e01f2" />
+
+<img width="1447" height="1253" alt="CleanShot 2026-07-01 at 15 53 18" src="https://github.com/user-attachments/assets/f0f4c990-5317-41e9-97be-ede6d2438fe6" />
+
+<img width="1461" height="191" alt="CleanShot 2026-07-01 at 15 54 06" src="https://github.com/user-attachments/assets/b3c5278c-fc4e-4853-acf8-696a6ae97e8c" />
+
+<img width="1457" height="635" alt="CleanShot 2026-07-01 at 15 54 13" src="https://github.com/user-attachments/assets/2046b497-23af-4d53-9ce5-351d2adc9aff" />
+
+
 ## Ethics & privacy
 
 `onda` behaves like a browser pointed at a stream you chose. It connects you
