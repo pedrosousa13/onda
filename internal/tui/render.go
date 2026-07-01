@@ -583,6 +583,15 @@ func runeCells(r rune) int {
 	if w := lipgloss.Width(string(r)); w > 1 {
 		return w
 	}
+	// Complex scripts (Arabic, Indic, SE-Asian — e.g. Tamil) are drawn with
+	// combining marks and base glyphs that many terminals/fonts render WIDER
+	// than lipgloss's Unicode width reports (verified: a standard grid fits a
+	// Tamil row that a real terminal wraps). A monospace cell can hold at most
+	// 2 columns per codepoint, so reserving 2 here upper-bounds whatever the
+	// terminal actually draws and guarantees the row can't overflow and wrap.
+	if r >= 0x0600 && r < 0x1100 {
+		return 2
+	}
 	return 1
 }
 

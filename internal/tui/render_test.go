@@ -272,14 +272,18 @@ func TestDispWidthConservative(t *testing.T) {
 	if got := dispWidth("日本語"); got != 6 { // 3 CJK glyphs, 2 cells each
 		t.Fatalf("dispWidth(CJK) = %d, want 6", got)
 	}
-	// Tamil combining marks are 0-width in Unicode; conservatively each rune is
-	// >=1 cell, so dispWidth == rune count and is never below lipgloss's width.
+	// Complex scripts (Tamil) reserve the monospace max (2 cells/codepoint), so
+	// dispWidth is at least the rune count and never below lipgloss's width —
+	// the safe direction against terminals that render them wider than Unicode.
 	tamil := "தமிழ்"
-	if dispWidth(tamil) != utf8.RuneCountInString(tamil) {
-		t.Fatalf("dispWidth(tamil) = %d, want rune count %d", dispWidth(tamil), utf8.RuneCountInString(tamil))
+	if dispWidth(tamil) < utf8.RuneCountInString(tamil) {
+		t.Fatalf("dispWidth(tamil) = %d, want >= rune count %d", dispWidth(tamil), utf8.RuneCountInString(tamil))
 	}
 	if dispWidth(tamil) < lipgloss.Width(tamil) {
 		t.Fatalf("dispWidth must never undercount lipgloss: %d < %d", dispWidth(tamil), lipgloss.Width(tamil))
+	}
+	if got, want := dispWidth(tamil), 2*utf8.RuneCountInString(tamil); got != want {
+		t.Fatalf("complex-script dispWidth = %d, want 2 cells/codepoint = %d", got, want)
 	}
 }
 
