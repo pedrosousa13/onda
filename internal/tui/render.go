@@ -562,16 +562,28 @@ func windowBounds(cursor, n, rows int) (int, int) {
 }
 
 // truncate shortens s to at most w display columns, adding an ellipsis.
+// It measures by display width (not rune count) so wide glyphs (CJK, etc.)
+// can't produce a row wider than its budget — an overflowing row soft-wraps
+// in the terminal and desyncs Bubble Tea's line-diff renderer.
 func truncate(s string, w int) string {
 	if w <= 0 {
 		return ""
 	}
-	r := []rune(s)
-	if len(r) <= w {
+	if lipgloss.Width(s) <= w {
 		return s
 	}
 	if w == 1 {
 		return "…"
 	}
-	return string(r[:w-1]) + "…"
+	var b strings.Builder
+	width := 0
+	for _, r := range s {
+		rw := lipgloss.Width(string(r))
+		if width+rw > w-1 { // leave one column for the ellipsis
+			break
+		}
+		b.WriteRune(r)
+		width += rw
+	}
+	return b.String() + "…"
 }

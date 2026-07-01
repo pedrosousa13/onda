@@ -204,3 +204,37 @@ func TestRenderRowShowsVotesTrendOnlyWhenPresent(t *testing.T) {
 		t.Errorf("bare row = %q, want no %q", row, "↑")
 	}
 }
+
+// wideName mixes 2-column CJK glyphs so display width exceeds rune count —
+// the case that made rows soft-wrap and desync the renderer.
+const wideName = "日本語ラジオ放送局とても長い名前のテスト局です"
+
+func TestTruncateBoundsDisplayWidth(t *testing.T) {
+	if got := lipgloss.Width(truncate(wideName, 10)); got > 10 {
+		t.Fatalf("truncate width = %d, want <= 10", got)
+	}
+	if got := truncate("hello world", 100); got != "hello world" {
+		t.Fatalf("short ASCII should pass through, got %q", got)
+	}
+	if got := truncate("hello world", 5); lipgloss.Width(got) > 5 {
+		t.Fatalf("ASCII truncate width = %d, want <= 5", lipgloss.Width(got))
+	}
+}
+
+func TestRenderRowWideNameNeverExceedsWidth(t *testing.T) {
+	m := sampleModel()
+	s := domain.Station{Name: wideName, Country: "Japan", Votes: 1200, Trend: 3}
+	row := m.renderRow(m.contentWidth(), 0, s)
+	if w := lipgloss.Width(row); w > m.contentWidth() {
+		t.Fatalf("renderRow width = %d, want <= contentWidth %d", w, m.contentWidth())
+	}
+}
+
+func TestRenderFacetRowWideNameNeverExceedsWidth(t *testing.T) {
+	m := sampleModel()
+	f := domain.Facet{Name: wideName, Count: 1234}
+	row := m.renderFacetRow(m.contentWidth(), 0, f)
+	if w := lipgloss.Width(row); w > m.contentWidth() {
+		t.Fatalf("renderFacetRow width = %d, want <= contentWidth %d", w, m.contentWidth())
+	}
+}
