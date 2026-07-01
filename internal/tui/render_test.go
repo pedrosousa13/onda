@@ -238,3 +238,23 @@ func TestRenderFacetRowWideNameNeverExceedsWidth(t *testing.T) {
 		t.Fatalf("renderFacetRow width = %d, want <= contentWidth %d", w, m.contentWidth())
 	}
 }
+
+// TestViewNeverExceedsTerminalWidth is the belt-and-suspenders guarantee: no
+// matter how wide a row's content is (long meta on a narrow terminal, dirty
+// data), View() must never emit a line wider than the terminal — a wrapped
+// line desyncs Bubble Tea's renderer.
+func TestViewNeverExceedsTerminalWidth(t *testing.T) {
+	m := Model{
+		width: 24, height: 24, st: newStyles(themeByName("catppuccin-mocha")),
+		favKeys: map[string]bool{}, hoverIdx: -1, view: viewBrowse, crumb: "test",
+	}
+	m.stations = []domain.Station{
+		{Name: "Some Very Long Station Name Indeed", Country: "The United Kingdom Of Great Britain And Northern Ireland", Votes: 304300, Trend: 3},
+		{Name: wideName, Country: "Japan", Votes: 1200, Trend: 5},
+	}
+	for _, ln := range strings.Split(m.View(), "\n") {
+		if w := lipgloss.Width(ln); w > m.width {
+			t.Fatalf("View line width %d exceeds terminal width %d: %q", w, m.width, ln)
+		}
+	}
+}

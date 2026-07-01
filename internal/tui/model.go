@@ -968,5 +968,5 @@ func (m Model) View() string {
 	default:
 		s = m.viewList()
 	}
-	return indentLines(s, gutter)
+	return clampWidth(indentLines(s, gutter), m.width)
 }
