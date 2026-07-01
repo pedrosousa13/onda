@@ -35,3 +35,41 @@ func TestDirectoryPopularSortsByVotes(t *testing.T) {
 		t.Fatalf("Popular should sort by votes desc, got %+v", got)
 	}
 }
+
+type fakeOnline struct {
+	queried string
+	result  []domain.Station
+}
+
+func (f *fakeOnline) Search(_ context.Context, q string) ([]domain.Station, error) {
+	f.queried = q
+	return f.result, nil
+}
+
+func TestSearchFallsBackToOnlineWhenNoCorpus(t *testing.T) {
+	on := &fakeOnline{result: []domain.Station{{Name: "Radio Eins"}}}
+	d := &Directory{Online: on, Offline: NewOffline()} // no corpus loaded
+	got, err := d.Search(context.Background(), "radio eins")
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if on.queried != "radio eins" {
+		t.Fatalf("online source not queried; queried=%q", on.queried)
+	}
+	if len(got) != 1 || got[0].Name != "Radio Eins" {
+		t.Fatalf("want online result, got %+v", got)
+	}
+}
+
+func TestSearchUsesCorpusWhenLoaded(t *testing.T) {
+	on := &fakeOnline{}
+	d := &Directory{Online: on}
+	d.setCorpus([]domain.Station{{Name: "Jazz FM"}, {Name: "Rock FM"}})
+	got, _ := d.Search(context.Background(), "jazz")
+	if on.queried != "" {
+		t.Fatal("online source must NOT be queried when corpus is loaded")
+	}
+	if len(got) == 0 || got[0].Name != "Jazz FM" {
+		t.Fatalf("want local corpus match, got %+v", got)
+	}
+}

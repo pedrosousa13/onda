@@ -72,13 +72,27 @@ func (d *Directory) Initial(ctx context.Context) ([]domain.Station, error) {
 	return d.base(ctx)
 }
 
-// Search runs locally over the corpus (fuzzy filter + rank). No network.
+// Search resolves in priority order:
+//  1. corpus loaded  -> local fuzzy match (typo-tolerant, no network)
+//  2. no corpus      -> online per-query search (today's behaviour)
+//  3. online errors  -> bundled starter list as an offline floor
 func (d *Directory) Search(ctx context.Context, query string) ([]domain.Station, error) {
-	stations, err := d.base(ctx)
-	if err != nil {
-		return nil, err
+	if s := d.snapshot(); len(s) > 0 {
+		return matchLocal(query, s), nil
 	}
-	return matchLocal(query, stations), nil
+	if d.Online != nil {
+		if st, err := d.Online.Search(ctx, query); err == nil {
+			return st, nil
+		}
+	}
+	if d.Offline != nil {
+		st, err := d.Offline.Search(ctx, "")
+		if err != nil {
+			return nil, err
+		}
+		return matchLocal(query, st), nil
+	}
+	return nil, nil
 }
 
 // Popular returns the corpus sorted by community votes (local; no network).
