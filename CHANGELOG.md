@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/pedrosousa13/onda/compare/v1.5.0...v1.5.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* **directory:** download the full catalog reliably on slower links ([#42](https://github.com/pedrosousa13/onda/issues/42)) ([4da8a46](https://github.com/pedrosousa13/onda/commit/4da8a466786ce949da11fb50c1900e89af98c8ac))
+
 ## [1.5.0](https://github.com/pedrosousa13/onda/compare/v1.4.0...v1.5.0) (2026-07-01)
 
 
