@@ -5,9 +5,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 const rbSample = `[
@@ -210,5 +212,71 @@ func TestFetchAllWithProgressFallsOverMirrors(t *testing.T) {
 	})
 	if _, err := rb.FetchAllWithProgress(context.Background(), nil); err != nil {
 		t.Fatalf("expected fallback to succeed, got %v", err)
+	}
+}
+
+// The full dump is ~70MB and streams far longer than a search. Reusing the
+// search client's 8s cap for it is exactly the bug that stranded users on the
+// tiny embedded list, so guard the two clients' timeouts explicitly.
+func TestBulkClientHasNoAbsoluteTimeout(t *testing.T) {
+	rb := NewRadioBrowser(RBOptions{Mirrors: []string{"http://example.test"}, UserAgent: "test"})
+	if rb.client.Timeout != searchTimeout {
+		t.Fatalf("search client should keep the %v cap, got %v", searchTimeout, rb.client.Timeout)
+	}
+	if rb.bulkClient.Timeout != 0 {
+		t.Fatalf("bulk client must not carry an absolute timeout, got %v", rb.bulkClient.Timeout)
+	}
+}
+
+func TestFetchDumpAbortsOnStall(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("[")) // start the body, then go silent
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		<-r.Context().Done() // unblocks when the client cancels
+	}))
+	defer srv.Close()
+	rb := NewRadioBrowser(RBOptions{Mirrors: []string{srv.URL}, UserAgent: "test"})
+	rb.stall = 50 * time.Millisecond
+	if _, err := rb.FetchAllWithProgress(context.Background(), nil); err == nil {
+		t.Fatal("expected a stalled download to error out")
+	}
+}
+
+// TestLiveFullDumpSmoke hits the real Radio Browser mirrors and asserts the
+// full dump comes back intact — the exact end-to-end path that the 8s search
+// cap used to truncate. Opt-in (ONDA_LIVE=1) so it stays out of per-PR CI;
+// run it nightly or by hand.
+func TestLiveFullDumpSmoke(t *testing.T) {
+	if os.Getenv("ONDA_LIVE") != "1" {
+		t.Skip("set ONDA_LIVE=1 to run the live full-dump smoke test")
+	}
+	rb := NewRadioBrowser(RBOptions{
+		Mirrors: []string{
+			"https://de1.api.radio-browser.info",
+			"https://nl1.api.radio-browser.info",
+			"https://fi1.api.radio-browser.info",
+		},
+		UserAgent: "onda/smoke-test",
+	})
+	var lastN int64
+	out, err := rb.FetchAllWithProgress(context.Background(), func(n int64) { lastN = n })
+	if err != nil {
+		t.Fatalf("live full dump failed: %v", err)
+	}
+	if len(out) < minPlausibleCorpus {
+		t.Fatalf("live dump too small (%d stations) — download likely truncated", len(out))
+	}
+	t.Logf("live dump OK: %d stations, %d bytes", len(out), lastN)
+}
+
+func TestFetchAllWithProgressRejectsTruncatedJSON(t *testing.T) {
+	rb := NewRadioBrowser(RBOptions{
+		Mirrors: []string{"http://example.test"},
+		Client:  &http.Client{Transport: dumpStubRT{body: `[{"name":"A","url_resolved":"x"`}}, // no closing bracket
+	})
+	if _, err := rb.FetchAllWithProgress(context.Background(), nil); err == nil {
+		t.Fatal("expected error on truncated dump JSON")
 	}
 }

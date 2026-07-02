@@ -21,18 +21,40 @@ type RBOptions struct {
 	Client    *http.Client
 }
 
+const (
+	// searchTimeout bounds a per-query search: small payload, must feel snappy.
+	searchTimeout = 8 * time.Second
+	// dumpStallTimeout aborts a full-catalog download only if it goes silent for
+	// this long. The dump is ~70MB and streams for far longer than searchTimeout
+	// on a normal link, so it must NOT share the search client's absolute cap —
+	// that cap is what stranded users on the tiny embedded list. Progress, not a
+	// whole-request clock, is what proves the mirror is alive.
+	dumpStallTimeout = 30 * time.Second
+	// fullDumpPath is the full-catalogue query. The explicit high limit is
+	// required: /json/stations defaults to only 1000 rows.
+	fullDumpPath = "/json/stations?hidebroken=true&limit=100000"
+)
+
 type RadioBrowser struct {
-	mirrors []string
-	ua      string
-	client  *http.Client
+	mirrors    []string
+	ua         string
+	client     *http.Client // short absolute timeout: per-query search
+	bulkClient *http.Client // no absolute timeout: the multi-tens-of-MB dump
+	stall      time.Duration
 }
 
 func NewRadioBrowser(o RBOptions) *RadioBrowser {
-	c := o.Client
-	if c == nil {
-		c = &http.Client{Timeout: 8 * time.Second}
+	client, bulk := o.Client, o.Client
+	if client == nil {
+		client = &http.Client{Timeout: searchTimeout}
+		// Clone the default transport (keeps proxy-from-env, dial timeouts, and
+		// connection pooling) and add only a header timeout, so a dead mirror is
+		// skipped fast without capping the body transfer of a healthy one.
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		tr.ResponseHeaderTimeout = 15 * time.Second
+		bulk = &http.Client{Transport: tr}
 	}
-	return &RadioBrowser{mirrors: o.Mirrors, ua: o.UserAgent, client: c}
+	return &RadioBrowser{mirrors: o.Mirrors, ua: o.UserAgent, client: client, bulkClient: bulk, stall: dumpStallTimeout}
 }
 
 type rbStation struct {
@@ -181,11 +203,10 @@ func (rb *RadioBrowser) getWithFallback(ctx context.Context, path string) ([]byt
 }
 
 // FetchAll downloads the entire station list to build the local corpus. The
-// HTTP transport negotiates gzip transparently, so the transfer is compressed.
-// The explicit high limit is required: /json/stations defaults to only 1000
-// rows, which would leave the "full" corpus a tiny fraction of the catalogue.
+// response is ~70MB of uncompressed JSON, so it uses the long-lived bulkClient
+// and streams the decode rather than buffering the whole body.
 func (rb *RadioBrowser) FetchAll(ctx context.Context) ([]domain.Station, error) {
-	raw, err := rb.fetchRaw(ctx, "/json/stations?hidebroken=true&limit=100000")
+	raw, err := rb.fetchDump(ctx, fullDumpPath, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -211,54 +232,69 @@ func (c *countingReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// getSequentialProgress tries mirrors one at a time, in order, unlike
-// getWithFallback which races them concurrently. Racing would let multiple
-// in-flight bodies report progress simultaneously, producing interleaved,
-// non-monotonic byte counts. Trying mirrors sequentially means only the
-// winning mirror ever drives onProgress, so counts stay monotonic.
-func (rb *RadioBrowser) getSequentialProgress(ctx context.Context, path string, onProgress func(int64)) ([]byte, error) {
+// fetchDump streams the full catalogue from the first working mirror, decoding
+// as bytes arrive so the whole ~70MB is never held in memory at once. Mirrors
+// are tried one at a time (not raced) so only the winning mirror drives
+// onProgress and byte counts stay monotonic; a mirror that goes silent for
+// longer than rb.stall is abandoned so a stuck socket can't hang forever.
+func (rb *RadioBrowser) fetchDump(ctx context.Context, path string, onProgress func(int64)) ([]rbStation, error) {
 	if len(rb.mirrors) == 0 {
 		return nil, errors.New("no mirrors configured")
 	}
 	var lastErr error
 	for _, base := range rb.mirrors {
-		body, err := func() ([]byte, error) {
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
-			if err != nil {
-				return nil, err
-			}
-			req.Header.Set("User-Agent", rb.ua)
-			resp, err := rb.client.Do(req)
-			if err != nil {
-				return nil, err
-			}
-			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				return nil, fmt.Errorf("mirror %s: status %d", base, resp.StatusCode)
-			}
-			cr := &countingReader{r: resp.Body, onN: onProgress}
-			return io.ReadAll(cr)
-		}()
+		raw, err := rb.fetchDumpFrom(ctx, base+path, onProgress)
 		if err != nil {
 			lastErr = err
-			continue // reset: next mirror starts its own counter from zero
+			continue // next mirror restarts its own byte counter from zero
 		}
-		return body, nil
+		return raw, nil
 	}
 	return nil, lastErr
 }
 
-// FetchAllWithProgress downloads the entire station list like FetchAll, but
-// reports cumulative decompressed bytes downloaded via onProgress as they
-// arrive. It uses a sequential single-mirror path (see getSequentialProgress)
-// so progress reporting stays monotonic.
-func (rb *RadioBrowser) FetchAllWithProgress(ctx context.Context, onProgress func(int64)) ([]domain.Station, error) {
-	body, err := rb.getSequentialProgress(ctx, "/json/stations?hidebroken=true&limit=100000", onProgress)
+func (rb *RadioBrowser) fetchDumpFrom(ctx context.Context, url string, onProgress func(int64)) ([]rbStation, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", rb.ua)
+	resp, err := rb.bulkClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("mirror %s: status %d", url, resp.StatusCode)
+	}
+
+	// Inactivity watchdog: cancel the request if no bytes arrive for rb.stall,
+	// resetting the timer on every read that carries data. This bounds a stalled
+	// socket without imposing a whole-request deadline on a slow-but-working link.
+	watchdog := time.AfterFunc(rb.stall, cancel)
+	defer watchdog.Stop()
+	cr := &countingReader{r: resp.Body, onN: func(n int64) {
+		watchdog.Reset(rb.stall)
+		if onProgress != nil {
+			onProgress(n)
+		}
+	}}
+
 	var raw []rbStation
-	if err := json.Unmarshal(body, &raw); err != nil {
+	if err := json.NewDecoder(cr).Decode(&raw); err != nil {
+		return nil, err
+	}
+	return raw, nil
+}
+
+// FetchAllWithProgress downloads the entire station list like FetchAll, but
+// reports cumulative bytes downloaded via onProgress as they arrive.
+func (rb *RadioBrowser) FetchAllWithProgress(ctx context.Context, onProgress func(int64)) ([]domain.Station, error) {
+	raw, err := rb.fetchDump(ctx, fullDumpPath, onProgress)
+	if err != nil {
 		return nil, err
 	}
 	return GroupRecords(rbToRecords(raw)), nil
