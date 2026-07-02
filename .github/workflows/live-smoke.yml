@@ -1,0 +1,20 @@
+name: live-smoke
+
+# Exercises the real Radio Browser mirrors end-to-end: proves the full ~70MB
+# catalogue download still completes intact (the path the old 8s search cap
+# used to truncate, stranding users on the tiny embedded list). Kept out of
+# per-PR CI because it hits the network and takes several seconds; runs nightly
+# and on demand instead.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with: { go-version: "1.25" }
+      - run: ONDA_LIVE=1 go test ./internal/directory/ -run TestLiveFullDumpSmoke -v -count=1

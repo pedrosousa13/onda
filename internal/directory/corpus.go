@@ -80,7 +80,23 @@ func (s *CorpusStore) Save(stations []domain.Station) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, s.path)
+	if err := os.Rename(tmpName, s.path); err != nil {
+		return err
+	}
+	s.pruneStale()
+	return nil
+}
+
+// pruneStale removes dumps written by an older corpusSchema, which Load can no
+// longer read. Called after a successful Save so a schema bump doesn't strand
+// tens of MB of unreadable data on disk. Best-effort: removal errors are ignored.
+func (s *CorpusStore) pruneStale() {
+	matches, _ := filepath.Glob(filepath.Join(filepath.Dir(s.path), "stations-*.json.gz"))
+	for _, m := range matches {
+		if m != s.path {
+			_ = os.Remove(m)
+		}
+	}
 }
 
 // Fresh reports whether a dump fetched at fetchedAt is still within the TTL.

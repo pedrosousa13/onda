@@ -4,11 +4,19 @@ package directory
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"sync"
 
 	"github.com/pedrosousa13/onda/internal/domain"
 )
+
+// minPlausibleCorpus is the floor below which a fetched dump is treated as
+// truncated/capped rather than the real catalogue (which runs to tens of
+// thousands). A dump this small is rejected so it never overwrites a good
+// corpus — it's well above the 1000-row default that a dropped limit param
+// would yield, and well below a healthy full download.
+const minPlausibleCorpus = 2000
 
 // Source is a provider of stations (online or offline).
 type Source interface {
@@ -186,6 +194,9 @@ func (d *Directory) RefreshWithProgress(ctx context.Context, onProgress func(dow
 	stations, err := f.FetchAllWithProgress(ctx, onProgress)
 	if err != nil {
 		return d.snapshot(), err
+	}
+	if len(stations) < minPlausibleCorpus {
+		return d.snapshot(), fmt.Errorf("station dump looks incomplete (%d stations); keeping existing catalog", len(stations))
 	}
 	d.setCorpus(stations)
 	if d.Corpus != nil {

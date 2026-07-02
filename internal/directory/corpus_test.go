@@ -2,6 +2,7 @@ package directory
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -50,6 +51,25 @@ func TestCorpusStoreDeleteMissingIsNotAnError(t *testing.T) {
 	s := NewCorpusStore(t.TempDir(), time.Hour)
 	if err := s.Delete(); err != nil {
 		t.Fatalf("deleting a missing corpus should not error, got %v", err)
+	}
+}
+
+func TestSaveRemovesStaleSchemaDumps(t *testing.T) {
+	dir := t.TempDir()
+	// A dump left behind by a previous corpusSchema version.
+	stale := filepath.Join(dir, "stations-v1.json.gz")
+	if err := os.WriteFile(stale, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := NewCorpusStore(dir, time.Hour)
+	if err := s.Save([]domain.Station{{Name: "Radio Eins"}}); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("stale-schema dump should be pruned, stat err=%v", err)
+	}
+	if _, ok := s.Size(); !ok {
+		t.Fatal("the current dump should remain after pruning")
 	}
 }
 
