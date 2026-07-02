@@ -33,7 +33,35 @@ func countryFacets(sts []domain.Station) []domain.Facet {
 }
 
 func languageFacets(sts []domain.Station) []domain.Facet {
-	return facetCounts(sts, func(s domain.Station) (string, bool) { return s.Language, s.Language != "" })
+	counts := map[string]int{}
+	for _, s := range sts {
+		for _, lang := range splitLanguage(s.Language) {
+			counts[lang]++
+		}
+	}
+	out := make([]domain.Facet, 0, len(counts))
+	for name, c := range counts {
+		out = append(out, domain.Facet{Name: name, Count: c})
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Count != out[j].Count {
+			return out[i].Count > out[j].Count
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
+
+func splitLanguage(language string) []string {
+	parts := strings.Split(language, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 // tagFacets counts each tag occurrence across stations, capped to the top 100.
@@ -74,7 +102,12 @@ func axisMatches(s domain.Station, axis domain.Axis, value string) bool {
 		}
 		return false
 	case domain.AxisLanguage:
-		return strings.EqualFold(s.Language, value)
+		for _, lang := range splitLanguage(s.Language) {
+			if strings.EqualFold(lang, value) {
+				return true
+			}
+		}
+		return false
 	default:
 		return strings.EqualFold(s.Country, value)
 	}

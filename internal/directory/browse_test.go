@@ -68,6 +68,31 @@ func TestDirectoryLanguages(t *testing.T) {
 	}
 }
 
+func TestDirectoryLanguagesSplitCommaSeparatedValues(t *testing.T) {
+	d := &Directory{Offline: fakeSource{out: []domain.Station{
+		{Name: "Bilingual FM", Language: "English, German", Votes: 20},
+		{Name: "English FM", Language: "English", Votes: 10},
+		{Name: "German FM", Language: "German", Votes: 5},
+	}}}
+
+	facets, err := d.Languages(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []domain.Facet{
+		{Name: "English", Count: 2},
+		{Name: "German", Count: 2},
+	}
+	if len(facets) != len(want) {
+		t.Fatalf("got %+v, want %+v", facets, want)
+	}
+	for i, f := range facets {
+		if f != want[i] {
+			t.Fatalf("got %+v, want %+v", facets, want)
+		}
+	}
+}
+
 func TestDirectoryTags(t *testing.T) {
 	facets, err := browseFixtureDir().Tags(context.Background())
 	if err != nil {
@@ -171,6 +196,24 @@ func TestDirectoryStationsByLanguage(t *testing.T) {
 		t.Fatalf("want 2 English stations, got %+v", got)
 	}
 	if got[0].Name != "Jazz FM" || got[1].Name != "Rock FM" {
+		t.Fatalf("want votes-desc order, got %+v", got)
+	}
+}
+
+func TestDirectoryStationsByLanguageMatchesCommaSeparatedValues(t *testing.T) {
+	d := &Directory{Offline: fakeSource{out: []domain.Station{
+		{Name: "Bilingual FM", Language: "English, German", Votes: 20},
+		{Name: "German FM", Language: "German", Votes: 5},
+	}}}
+
+	got, err := d.StationsBy(context.Background(), domain.AxisLanguage, "german", domain.Sort{Key: domain.SortVotes})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("want 2 German stations, got %+v", got)
+	}
+	if got[0].Name != "Bilingual FM" || got[1].Name != "German FM" {
 		t.Fatalf("want votes-desc order, got %+v", got)
 	}
 }

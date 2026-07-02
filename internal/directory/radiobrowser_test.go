@@ -17,6 +17,8 @@ const rbSample = `[
   {"name":"KEXP","homepage":"kexp.org","url_resolved":"u64","codec":"MP3","bitrate":64,"country":"United States","tags":"","language":"English","clicktrend":5}
 ]`
 
+const liveFullDumpMinStations = 40000
+
 func TestRadioBrowserSearchGroups(t *testing.T) {
 	var (
 		mu    sync.Mutex
@@ -265,7 +267,7 @@ func TestLiveFullDumpSmoke(t *testing.T) {
 	if err != nil {
 		t.Fatalf("live full dump failed: %v", err)
 	}
-	if len(out) < minPlausibleCorpus {
+	if len(out) < liveFullDumpMinStations {
 		t.Fatalf("live dump too small (%d stations) — download likely truncated", len(out))
 	}
 	t.Logf("live dump OK: %d stations, %d bytes", len(out), lastN)

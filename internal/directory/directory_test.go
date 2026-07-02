@@ -37,6 +37,19 @@ func TestDirectoryPopularSortsByVotes(t *testing.T) {
 	}
 }
 
+func TestDirectoryPopularCapsAt100(t *testing.T) {
+	d := &Directory{}
+	d.setCorpus(nStations(150))
+
+	got, err := d.Popular(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 100 {
+		t.Fatalf("Popular should cap at 100 stations, got %d", len(got))
+	}
+}
+
 type fakeOnline struct {
 	queried string
 	result  []domain.Station
@@ -110,6 +123,12 @@ func nStations(n int) []domain.Station {
 		out[i] = domain.Station{Name: "s"}
 	}
 	return out
+}
+
+func TestMinPlausibleCorpusStaysNearFullCatalogScale(t *testing.T) {
+	if minPlausibleCorpus < 20000 {
+		t.Fatalf("minPlausibleCorpus = %d; want at least 20000 so partial dumps are rejected", minPlausibleCorpus)
+	}
 }
 
 func TestRefreshKeepsCorpusWhenDumpTooSmall(t *testing.T) {

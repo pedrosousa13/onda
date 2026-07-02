@@ -41,6 +41,10 @@ const connectTimeout = 12 * time.Second
 // homeRecentsCap bounds the "recent" section shown above favorites on Home.
 const homeRecentsCap = 5
 
+// homePopularPreviewCap keeps Home as a compact landing page. The full Popular
+// list remains available from the Browse/Popular view.
+const homePopularPreviewCap = 5
+
 // catalogSizeHint is the approximate download size shown in the offer UI.
 // (Task 10 replaces this with a measured figure.)
 const catalogSizeHint = "~30 MB"
@@ -100,6 +104,7 @@ type Model struct {
 	height          int
 	favKeys         map[string]bool
 	homeRecents     []domain.Station // leading "recent" section on Home (opt-in, capped)
+	homeFavoritesN  int              // favorite rows after homeRecents and before Popular on Home
 	sp              spinner.Model
 	loading         bool
 	refreshing      bool
@@ -165,9 +170,10 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 		if err != nil {
 			favs = nil
 		}
+		m.homeFavoritesN = len(favs)
 		m.stations = append(append([]domain.Station{}, m.homeRecents...), favs...)
 		m.markFavorites()
-		if len(favs) == 0 {
+		if dir != nil {
 			m.loading = true
 		}
 	} else {
@@ -183,8 +189,8 @@ func New(dir Searcher, p Player, st Store, quality domain.QualityPref, tracking 
 
 func (m Model) Init() tea.Cmd {
 	cmds := []tea.Cmd{}
-	if m.loading { // no favorites yet → load an initial preview for Home
-		cmds = append(cmds, initialCmd(m.dir), m.sp.Tick)
+	if m.loading { // no favorites yet → load a vote-sorted Popular preview for Home
+		cmds = append(cmds, popularCmd(m.dir), m.sp.Tick)
 	}
 	if m.needsRefresh { // refresh the corpus in the background
 		cmds = append(cmds, refreshWithProgressCmd(m.dir, m.progress), listenProgressCmd(m.progress), m.sp.Tick)
@@ -273,8 +279,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case stationsMsg:
 		m.loading = false
 		if m.view == viewHome {
-			// Home's Popular preview loads async; keep the recent section pinned on top.
-			m.stations = append(append([]domain.Station{}, m.homeRecents...), msg.stations...)
+			// Home's Popular preview loads async; keep recents and favorites pinned above it.
+			m.rebuildHomeStations(msg.stations)
+			return m, nil
 		} else {
 			m.stations = msg.stations
 		}
@@ -411,31 +418,33 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 // stationAtY maps a screen row to a visible station index, or -1 if the row
 // isn't over a station. Geometry mirrors viewList/viewHome layout.
 func (m Model) stationAtY(y int) int {
-	// Home with a pinned "recent" section on top: two sub-lists, distinct geometry.
-	if recN := m.homeRecentsN(); recN > 0 {
-		listRows := m.height - 14
-		if listRows < 3 {
-			listRows = 3
-		}
-		dispRecN, favStart, favEnd, _ := m.homeFavWindow(listRows)
-		const recStartY = 11 // header(2)+blank(1)+panel(5)+hint(1)+blank(1)+recent-label(1)
-		if y >= recStartY && y < recStartY+dispRecN {
-			return y - recStartY
-		}
-		favRowStartY := recStartY + dispRecN + 1 // +1 for the favorites/popular label
-		if j := favStart + (y - favRowStartY); y >= favRowStartY && j >= favStart && j < favEnd {
-			if idx := recN + j; idx < len(m.stations) {
-				return idx
-			}
-		}
-		return -1
-	}
-
 	rowStartY := 3 // header(2) + blank(1)
 	listRows := m.height - chromeHeight
 	if m.view == viewHome {
-		rowStartY = 11 // header(2)+blank(1)+panel(5)+hint(1)+blank(1)+label(1)
+		labelY := 10 // header(2)+blank(1)+panel(5)+hint(1)+blank(1)
 		listRows = m.height - 13
+		if listRows < 3 {
+			listRows = 3
+		}
+		start, end := windowBounds(m.cursor, len(m.stations), listRows)
+		for _, sec := range m.homeSections() {
+			visStart, visEnd := sec.start, sec.end
+			if visStart < start {
+				visStart = start
+			}
+			if visEnd > end {
+				visEnd = end
+			}
+			if visStart >= visEnd {
+				continue
+			}
+			rowStartY := labelY + 1
+			if y >= rowStartY && y < rowStartY+(visEnd-visStart) {
+				return visStart + (y - rowStartY)
+			}
+			labelY = rowStartY + (visEnd - visStart)
+		}
+		return -1
 	}
 	if listRows < 3 {
 		listRows = 3
@@ -575,24 +584,17 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// goHome returns to the Home view: opt-in recents on top, then favorites if any,
-// else a Popular preview.
+// goHome returns to the Home view: opt-in recents, favorites, and a compact
+// Popular preview.
 func (m Model) goHome() (tea.Model, tea.Cmd) {
 	m.view = viewHome
 	m.browseLevel = 0
 	m.crumb = "home"
 	m.cursor = 0
-	m.homeRecents = m.recentsForHome()
-	if m.store != nil {
-		if favs, err := m.store.Favorites(); err == nil && len(favs) > 0 {
-			m.stations = append(append([]domain.Station{}, m.homeRecents...), favs...)
-			m.markFavorites()
-			return m, nil
-		}
+	m.rebuildHomeStations(nil)
+	if m.dir == nil {
+		return m, nil
 	}
-	// No favorites → keep recents pinned and load a Popular preview for the rest.
-	m.stations = append([]domain.Station{}, m.homeRecents...)
-	m.markFavorites()
 	return m.load(popularCmd(m.dir))
 }
 
@@ -612,6 +614,44 @@ func (m Model) recentsForHome() []domain.Station {
 	return rec
 }
 
+func (m *Model) rebuildHomeStations(popular []domain.Station) {
+	m.homeRecents = m.recentsForHome()
+	favs := m.favoriteStations()
+	m.homeFavoritesN = len(favs)
+	m.markFavorites()
+
+	out := append([]domain.Station{}, m.homeRecents...)
+	out = append(out, favs...)
+	out = append(out, homePopularPreview(popular, m.favKeys)...)
+	m.stations = out
+	m.clampCursor()
+}
+
+func homePopularPreview(stations []domain.Station, favs map[string]bool) []domain.Station {
+	out := make([]domain.Station, 0, homePopularPreviewCap)
+	for _, st := range stations {
+		if favs[favKey(st)] {
+			continue
+		}
+		out = append(out, st)
+		if len(out) == homePopularPreviewCap {
+			break
+		}
+	}
+	return out
+}
+
+func (m Model) homePopularStations() []domain.Station {
+	if m.view != viewHome {
+		return nil
+	}
+	start := m.homeRecentsN() + m.homeFavoritesCount()
+	if start >= len(m.stations) {
+		return nil
+	}
+	return append([]domain.Station{}, m.stations[start:]...)
+}
+
 // homeRecentsN is the number of leading rows in m.stations that make up the
 // Home "recent" section. Zero unless we're on Home with recorded history.
 func (m Model) homeRecentsN() int {
@@ -621,6 +661,21 @@ func (m Model) homeRecentsN() int {
 	n := len(m.homeRecents)
 	if n > len(m.stations) {
 		n = len(m.stations)
+	}
+	return n
+}
+
+func (m Model) homeFavoritesCount() int {
+	if m.view != viewHome {
+		return 0
+	}
+	recN := m.homeRecentsN()
+	n := m.homeFavoritesN
+	if n < 0 {
+		return 0
+	}
+	if n > len(m.stations)-recN {
+		return len(m.stations) - recN
 	}
 	return n
 }
@@ -727,7 +782,7 @@ func clampVolume(v int) int {
 }
 
 func (m Model) toggleFavorite() (Model, tea.Cmd) {
-	if len(m.stations) == 0 {
+	if m.store == nil || len(m.stations) == 0 || m.cursor < 0 || m.cursor >= len(m.stations) {
 		return m, nil
 	}
 	st := m.stations[m.cursor]
@@ -740,21 +795,64 @@ func (m Model) toggleFavorite() (Model, tea.Cmd) {
 		m.status = "added to favorites: " + st.Name
 	}
 	m.markFavorites()
+	return m.syncFavoriteBackedView()
+}
+
+func (m Model) syncFavoriteBackedView() (Model, tea.Cmd) {
+	switch m.view {
+	case viewFavorites:
+		m.reloadFavoriteStations()
+	case viewHome:
+		m.rebuildHomeStations(m.homePopularStations())
+	}
+	m.clampCursor()
 	return m, nil
 }
 
 func (m Model) showFavorites() (tea.Model, tea.Cmd) {
+	m.view = viewFavorites
+	m.browseLevel = 0
+	m.cursor = 0
+	if !m.reloadFavoriteStations() {
+		return m, nil
+	}
+	m.markFavorites()
+	return m, nil
+}
+
+func (m *Model) reloadFavoriteStations() bool {
 	favs, err := m.store.Favorites()
 	if err != nil {
 		m.status = "error loading favorites: " + err.Error()
-		return m, nil
+		return false
 	}
-	m.view = viewFavorites
-	m.browseLevel = 0
 	m.stations = favs
-	m.cursor = 0
-	m.markFavorites()
-	return m, nil
+	m.clampCursor()
+	return true
+}
+
+func (m Model) favoriteStations() []domain.Station {
+	if m.store == nil {
+		return nil
+	}
+	favs, err := m.store.Favorites()
+	if err != nil {
+		return nil
+	}
+	return favs
+}
+
+func (m *Model) clampCursor() {
+	if len(m.stations) == 0 {
+		m.cursor = 0
+		return
+	}
+	if m.cursor < 0 {
+		m.cursor = 0
+	}
+	if m.cursor >= len(m.stations) {
+		m.cursor = len(m.stations) - 1
+	}
 }
 
 // showRecents opens the locally-stored play history (newest first).

@@ -135,6 +135,22 @@ func TestHomeCenteredHeroAndHint(t *testing.T) {
 	}
 }
 
+func TestHomeRendersFavoritesAndPopularSections(t *testing.T) {
+	m := sampleModel()
+	m.view = viewHome
+	m.homeFavoritesN = 1
+	m.stations = []domain.Station{
+		{Name: "KEXP", Homepage: "kexp.org"},
+		{Name: "FIP", Homepage: "fip.fr"},
+	}
+	m.favKeys = map[string]bool{favKey(m.stations[0]): true}
+
+	out := stripANSI(m.View())
+	if !strings.Contains(out, "favorites") || !strings.Contains(out, "popular") {
+		t.Fatalf("Home should render favorites and popular sections, got:\n%s", out)
+	}
+}
+
 func TestUpdateBannerText(t *testing.T) {
 	mk := func(s update.Status) Model {
 		return Model{st: newStyles(themeByName("catppuccin-mocha")), width: 80, update: s}

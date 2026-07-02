@@ -12,11 +12,10 @@ import (
 )
 
 // minPlausibleCorpus is the floor below which a fetched dump is treated as
-// truncated/capped rather than the real catalogue (which runs to tens of
-// thousands). A dump this small is rejected so it never overwrites a good
-// corpus — it's well above the 1000-row default that a dropped limit param
-// would yield, and well below a healthy full download.
-const minPlausibleCorpus = 2000
+// truncated/capped rather than the real catalogue. Radio Browser's usable
+// grouped catalogue is currently tens of thousands of stations, so this rejects
+// small-but-not-empty partial dumps before they overwrite a good corpus.
+const minPlausibleCorpus = 20000
 
 // Source is a provider of stations (online or offline).
 type Source interface {

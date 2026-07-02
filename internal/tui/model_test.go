@@ -48,6 +48,39 @@ func (stubDir) StationsBy(context.Context, domain.Axis, string, domain.Sort) ([]
 	return nil, nil
 }
 
+type homePreviewDir struct {
+	popularCalls int
+	initialCalls int
+}
+
+func (d *homePreviewDir) Search(context.Context, string) ([]domain.Station, error) { return nil, nil }
+func (d *homePreviewDir) Popular(context.Context) ([]domain.Station, error) {
+	d.popularCalls++
+	return []domain.Station{{Name: "Popular"}}, nil
+}
+func (d *homePreviewDir) Initial(context.Context) ([]domain.Station, error) {
+	d.initialCalls++
+	return []domain.Station{{Name: "Initial"}}, nil
+}
+func (d *homePreviewDir) Refresh(context.Context) ([]domain.Station, error) { return nil, nil }
+func (d *homePreviewDir) RefreshWithProgress(context.Context, func(int64)) ([]domain.Station, error) {
+	return nil, nil
+}
+func (d *homePreviewDir) ClearCorpus() error        { return nil }
+func (d *homePreviewDir) CorpusSize() (int64, bool) { return 0, false }
+func (d *homePreviewDir) Countries(context.Context) ([]domain.Facet, error) {
+	return nil, nil
+}
+func (d *homePreviewDir) Tags(context.Context) ([]domain.Facet, error) {
+	return nil, nil
+}
+func (d *homePreviewDir) Languages(context.Context) ([]domain.Facet, error) {
+	return nil, nil
+}
+func (d *homePreviewDir) StationsBy(context.Context, domain.Axis, string, domain.Sort) ([]domain.Station, error) {
+	return nil, nil
+}
+
 var errSample = errors.New("boom")
 
 func TestCorpusRefreshedKeepsFavoritesOnHome(t *testing.T) {
@@ -74,12 +107,117 @@ func TestCorpusRefreshedReloadsPopularWhenNoFavorites(t *testing.T) {
 	}
 }
 
+func TestInitLoadsPopularPreviewWhenHomeHasNoFavorites(t *testing.T) {
+	dir := &homePreviewDir{}
+	m := New(dir, nil, &fakeStore{}, domain.QualityHighest, "never", false, "catppuccin-mocha", false, true, 100, false, false, "on", "1.0.0", t.TempDir())
+
+	cmd := m.Init()
+	if cmd == nil {
+		t.Fatal("expected Init to load a Home preview")
+	}
+	initMsg := cmd()
+	batch, ok := initMsg.(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("expected Init command batch, got %T", initMsg)
+	}
+	var msg stationsMsg
+	for _, c := range batch {
+		if got, ok := c().(stationsMsg); ok {
+			msg = got
+			break
+		}
+	}
+	if dir.initialCalls != 0 {
+		t.Fatalf("Home preview must not call Initial/full corpus, called %d times", dir.initialCalls)
+	}
+	if dir.popularCalls != 1 {
+		t.Fatalf("Home preview should call Popular once, called %d times", dir.popularCalls)
+	}
+	if len(msg.stations) != 1 || msg.stations[0].Name != "Popular" {
+		t.Fatalf("expected Popular preview stations, got %+v", msg.stations)
+	}
+}
+
 func TestUpdateStationsMsgPopulatesList(t *testing.T) {
 	m := Model{}
 	updated, _ := m.Update(stationsMsg{stations: []domain.Station{{Name: "KEXP"}}})
 	got := updated.(Model)
 	if len(got.stations) != 1 || got.stations[0].Name != "KEXP" {
 		t.Fatalf("stationsMsg did not populate list: %+v", got.stations)
+	}
+}
+
+func TestHomePopularPreviewIsSmall(t *testing.T) {
+	stations := make([]domain.Station, 20)
+	for i := range stations {
+		stations[i] = domain.Station{Name: fmt.Sprintf("S%d", i)}
+	}
+	m := Model{view: viewHome, favKeys: map[string]bool{}}
+
+	updated, _ := m.Update(stationsMsg{stations: stations})
+	got := updated.(Model)
+	if len(got.stations) != homePopularPreviewCap {
+		t.Fatalf("Home popular preview = %d stations, want %d", len(got.stations), homePopularPreviewCap)
+	}
+}
+
+func TestHomePopularPreviewKeepsRecentsAndCapsPopularRows(t *testing.T) {
+	popular := make([]domain.Station, 20)
+	for i := range popular {
+		popular[i] = domain.Station{Name: fmt.Sprintf("P%d", i)}
+	}
+	m := Model{
+		view:        viewHome,
+		history:     true,
+		store:       &fakeStore{recents: []domain.Station{{Name: "Recent"}}},
+		homeRecents: []domain.Station{{Name: "Recent"}},
+		stations:    []domain.Station{{Name: "Recent"}},
+		favKeys:     map[string]bool{},
+	}
+
+	updated, _ := m.Update(stationsMsg{stations: popular})
+	got := updated.(Model)
+	if len(got.stations) != 1+homePopularPreviewCap {
+		t.Fatalf("Home stations = %d, want recents plus %d popular", len(got.stations), homePopularPreviewCap)
+	}
+	if got.stations[0].Name != "Recent" || got.stations[1].Name != "P0" {
+		t.Fatalf("Home should keep recents before popular preview, got %+v", got.stations[:2])
+	}
+}
+
+func TestHomePopularPreviewKeepsFavoritesAndFiltersDuplicates(t *testing.T) {
+	fav := domain.Station{Name: "KEXP", Homepage: "kexp.org"}
+	popular := []domain.Station{
+		fav,
+		{Name: "FIP", Homepage: "fip.fr"},
+		{Name: "NTS", Homepage: "nts.live"},
+	}
+	m := Model{view: viewHome, store: &fakeStore{favs: []domain.Station{fav}}, favKeys: map[string]bool{}}
+
+	updated, _ := m.Update(stationsMsg{stations: popular})
+	got := updated.(Model)
+	if got.homeFavoritesCount() != 1 {
+		t.Fatalf("homeFavoritesCount = %d, want 1", got.homeFavoritesCount())
+	}
+	if len(got.stations) != 3 {
+		t.Fatalf("Home should contain favorite plus non-duplicate popular preview, got %+v", got.stations)
+	}
+	if got.stations[0].Name != "KEXP" || got.stations[1].Name != "FIP" || got.stations[2].Name != "NTS" {
+		t.Fatalf("unexpected Home order: %+v", got.stations)
+	}
+}
+
+func TestBrowsePopularKeepsDirectoryPopularList(t *testing.T) {
+	stations := make([]domain.Station, 20)
+	for i := range stations {
+		stations[i] = domain.Station{Name: fmt.Sprintf("S%d", i)}
+	}
+	m := Model{view: viewBrowse, crumb: "popular"}
+
+	updated, _ := m.Update(stationsMsg{stations: stations})
+	got := updated.(Model)
+	if len(got.stations) != len(stations) {
+		t.Fatalf("Browse popular should keep full directory list, got %d want %d", len(got.stations), len(stations))
 	}
 }
 
@@ -102,23 +240,54 @@ type fakeStore struct {
 	savedCatalog   string
 }
 
-func (f *fakeStore) Favorites() ([]domain.Station, error)    { return f.favs, nil }
-func (f *fakeStore) AddFavorite(domain.Station) error        { f.adds++; f.isFav = true; return nil }
-func (f *fakeStore) RemoveFavorite(domain.Station) error     { f.removes++; f.isFav = false; return nil }
-func (f *fakeStore) IsFavorite(domain.Station) (bool, error) { return f.isFav, nil }
-func (f *fakeStore) AddCustom(s domain.Station) error        { f.custom = append(f.custom, s); return nil }
-func (f *fakeStore) SaveQuality(domain.QualityPref) error    { return nil }
-func (f *fakeStore) SaveTracking(string) error               { return nil }
-func (f *fakeStore) SaveHistory(bool) error                  { return nil }
-func (f *fakeStore) SaveTheme(string) error                  { return nil }
-func (f *fakeStore) SaveOfflineCatalog(v string) error       { f.savedCatalog = v; return nil }
-func (f *fakeStore) SaveUpdateCheck(bool) error              { return nil }
-func (f *fakeStore) SaveLiveSearch(bool) error               { return nil }
-func (f *fakeStore) SaveVolume(v int) error                  { f.savedVolume = v; return nil }
-func (f *fakeStore) SaveNormalize(v bool) error              { f.savedNormalize = v; return nil }
-func (f *fakeStore) Recents() ([]domain.Station, error)      { return f.recents, nil }
-func (f *fakeStore) AddRecent(s domain.Station) error        { f.recents = append(f.recents, s); return nil }
-func (f *fakeStore) ClearRecents() error                     { f.recents = nil; return nil }
+func (f *fakeStore) Favorites() ([]domain.Station, error) { return f.favs, nil }
+func (f *fakeStore) AddFavorite(s domain.Station) error {
+	f.adds++
+	f.isFav = true
+	for _, fav := range f.favs {
+		if favKey(fav) == favKey(s) {
+			return nil
+		}
+	}
+	f.favs = append(f.favs, s)
+	return nil
+}
+func (f *fakeStore) RemoveFavorite(s domain.Station) error {
+	f.removes++
+	f.isFav = false
+	out := f.favs[:0]
+	for _, fav := range f.favs {
+		if favKey(fav) != favKey(s) {
+			out = append(out, fav)
+		}
+	}
+	f.favs = out
+	return nil
+}
+func (f *fakeStore) IsFavorite(s domain.Station) (bool, error) {
+	if f.isFav {
+		return true, nil
+	}
+	for _, fav := range f.favs {
+		if favKey(fav) == favKey(s) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+func (f *fakeStore) AddCustom(s domain.Station) error     { f.custom = append(f.custom, s); return nil }
+func (f *fakeStore) SaveQuality(domain.QualityPref) error { return nil }
+func (f *fakeStore) SaveTracking(string) error            { return nil }
+func (f *fakeStore) SaveHistory(bool) error               { return nil }
+func (f *fakeStore) SaveTheme(string) error               { return nil }
+func (f *fakeStore) SaveOfflineCatalog(v string) error    { f.savedCatalog = v; return nil }
+func (f *fakeStore) SaveUpdateCheck(bool) error           { return nil }
+func (f *fakeStore) SaveLiveSearch(bool) error            { return nil }
+func (f *fakeStore) SaveVolume(v int) error               { f.savedVolume = v; return nil }
+func (f *fakeStore) SaveNormalize(v bool) error           { f.savedNormalize = v; return nil }
+func (f *fakeStore) Recents() ([]domain.Station, error)   { return f.recents, nil }
+func (f *fakeStore) AddRecent(s domain.Station) error     { f.recents = append(f.recents, s); return nil }
+func (f *fakeStore) ClearRecents() error                  { f.recents = nil; return nil }
 
 func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 	fs := &fakeStore{}
@@ -129,6 +298,57 @@ func TestToggleFavoriteAddsAndRemoves(t *testing.T) {
 	m = updated
 	if fs.adds != 1 || fs.removes != 1 {
 		t.Fatalf("toggle should add then remove, got adds=%d removes=%d", fs.adds, fs.removes)
+	}
+}
+
+func TestToggleFavoriteFromHomePopularSwitchesToFavorites(t *testing.T) {
+	fs := &fakeStore{}
+	popular := []domain.Station{
+		{Name: "KEXP", Homepage: "kexp.org"},
+		{Name: "FIP", Homepage: "fip.fr"},
+	}
+	m := Model{view: viewHome, store: fs, stations: popular, cursor: 1, favKeys: map[string]bool{}}
+
+	got, _ := m.toggleFavorite()
+	if got.homeFavoritesCount() != 1 {
+		t.Fatalf("homeFavoritesCount = %d, want 1", got.homeFavoritesCount())
+	}
+	if len(got.stations) != 2 || got.stations[0].Name != "FIP" || got.stations[1].Name != "KEXP" {
+		t.Fatalf("Home should move selected popular into favorites and keep remaining popular, got %+v", got.stations)
+	}
+	if !got.favKeys[favKey(popular[1])] {
+		t.Fatalf("favorite key not refreshed: %+v", got.favKeys)
+	}
+}
+
+func TestToggleFavoriteRemovesFromFavoritesViewImmediately(t *testing.T) {
+	kexp := domain.Station{Name: "KEXP", Homepage: "kexp.org"}
+	fip := domain.Station{Name: "FIP", Homepage: "fip.fr"}
+	fs := &fakeStore{favs: []domain.Station{kexp, fip}}
+	m := Model{view: viewFavorites, store: fs, stations: []domain.Station{kexp, fip}, cursor: 0}
+
+	got, _ := m.toggleFavorite()
+	if len(got.stations) != 1 || got.stations[0].Name != "FIP" {
+		t.Fatalf("Favorites view should remove unfavorited station immediately, got %+v", got.stations)
+	}
+	if got.cursor != 0 {
+		t.Fatalf("cursor should stay on remaining item, got %d", got.cursor)
+	}
+}
+
+func TestToggleFavoriteRemovesFromHomeFavoritesImmediately(t *testing.T) {
+	kexp := domain.Station{Name: "KEXP", Homepage: "kexp.org"}
+	fip := domain.Station{Name: "FIP", Homepage: "fip.fr"}
+	fs := &fakeStore{favs: []domain.Station{kexp, fip}}
+	m := Model{view: viewHome, store: fs, stations: []domain.Station{kexp, fip}, homeFavoritesN: 2, cursor: 1}
+	m.markFavorites()
+
+	got, _ := m.toggleFavorite()
+	if len(got.stations) != 1 || got.stations[0].Name != "KEXP" {
+		t.Fatalf("Home favorites should remove unfavorited station immediately, got %+v", got.stations)
+	}
+	if got.cursor != 0 {
+		t.Fatalf("cursor should clamp to remaining favorite, got %d", got.cursor)
 	}
 }
 
