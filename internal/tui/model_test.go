@@ -60,6 +60,21 @@ func TestPlaySelectedImmediateErrorPreservesCurrentStation(t *testing.T) {
 	}
 }
 
+func TestChangeVariantImmediateErrorDoesNotChangeVariant(t *testing.T) {
+	st := domain.Station{
+		Name:     "KEXP",
+		Variants: []domain.StreamVariant{{URL: "high", Bitrate: 192}, {URL: "low", Bitrate: 64}},
+	}
+	m := Model{player: &fakePlayer{playErr: errors.New("boom")}, playing: st, isPlaying: true, varIdx: 0}
+	got := mustModel(m.changeVariant(1))
+	if got.varIdx != 0 {
+		t.Fatalf("failed variant switch should preserve varIdx, got %d", got.varIdx)
+	}
+	if got.phase != phaseFailed {
+		t.Fatalf("failed variant switch should set failed phase, got %d", got.phase)
+	}
+}
+
 // stubDir satisfies Searcher with no-op local/network calls.
 type stubDir struct{}
 

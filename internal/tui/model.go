@@ -753,15 +753,18 @@ func (m Model) changeVariant(delta int) (tea.Model, tea.Cmd) {
 		m.status = "only one quality available"
 		return m, nil
 	}
-	m.varIdx += delta
-	if m.varIdx < 0 {
-		m.varIdx = 0
+	nextIdx := m.varIdx + delta
+	if nextIdx < 0 {
+		nextIdx = 0
 	}
-	if m.varIdx > len(m.playing.Variants)-1 {
-		m.varIdx = len(m.playing.Variants) - 1
+	if nextIdx > len(m.playing.Variants)-1 {
+		nextIdx = len(m.playing.Variants) - 1
 	}
-	v := m.playing.Variants[m.varIdx]
-	_ = m.player.Play(v.URL)
+	v := m.playing.Variants[nextIdx]
+	if err := m.player.Play(v.URL); err != nil {
+		return m.playbackFailed(err)
+	}
+	m.varIdx = nextIdx
 	m.status = "quality " + v.Quality()
 	return m.startConnecting()
 }
