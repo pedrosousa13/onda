@@ -42,6 +42,24 @@ func TestPlaySelectedImmediateErrorDoesNotEnterConnecting(t *testing.T) {
 	}
 }
 
+func TestPlaySelectedImmediateErrorPreservesCurrentStation(t *testing.T) {
+	current := domain.Station{Name: "Current", Variants: []domain.StreamVariant{{URL: "current"}}}
+	next := domain.Station{Name: "Next", Variants: []domain.StreamVariant{{URL: "next"}}}
+	m := Model{
+		player:   &fakePlayer{playErr: errors.New("boom")},
+		stations: []domain.Station{next}, cursor: 0,
+		playing: current, isPlaying: true, phase: phasePlaying,
+	}
+	got, _ := m.playSelected()
+	out := got.(Model)
+	if out.playing.Name != "Current" {
+		t.Fatalf("failed immediate play should preserve current station, got %+v", out.playing)
+	}
+	if !out.isPlaying {
+		t.Fatal("failed immediate play should preserve current playing state")
+	}
+}
+
 // stubDir satisfies Searcher with no-op local/network calls.
 type stubDir struct{}
 
