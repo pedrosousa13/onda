@@ -15,13 +15,32 @@ import (
 
 type fakePlayer struct {
 	played    string
+	playErr   error
 	normalize bool
 }
 
-func (f *fakePlayer) Play(url string) error      { f.played = url; return nil }
+func (f *fakePlayer) Play(url string) error      { f.played = url; return f.playErr }
 func (f *fakePlayer) Stop() error                { return nil }
 func (f *fakePlayer) Volume(int) error           { return nil }
 func (f *fakePlayer) SetNormalize(on bool) error { f.normalize = on; return nil }
+
+func TestPlaySelectedImmediateErrorDoesNotEnterConnecting(t *testing.T) {
+	errPlay := errors.New("mpv command failed")
+	fp := &fakePlayer{playErr: errPlay}
+	st := domain.Station{Name: "KEXP", Variants: []domain.StreamVariant{{URL: "https://example.com/stream", Bitrate: 128}}}
+	m := Model{player: fp, stations: []domain.Station{st}, cursor: 0}
+	got, cmd := m.playSelected()
+	out := got.(Model)
+	if cmd != nil {
+		t.Fatal("failed immediate play should not start a connect timeout")
+	}
+	if out.phase != phaseFailed || out.isPlaying {
+		t.Fatalf("failed immediate play should fail without playing, phase=%d isPlaying=%v", out.phase, out.isPlaying)
+	}
+	if out.playErr == "" || !strings.Contains(out.status, "couldn't play") {
+		t.Fatalf("expected useful play error, status=%q playErr=%q", out.status, out.playErr)
+	}
+}
 
 // stubDir satisfies Searcher with no-op local/network calls.
 type stubDir struct{}
