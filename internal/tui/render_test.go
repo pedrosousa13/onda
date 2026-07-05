@@ -113,6 +113,17 @@ func TestPanelWidthWithinGutter(t *testing.T) {
 	}
 }
 
+func TestNowPanelShowsImmediatePlaybackError(t *testing.T) {
+	m := sampleModel()
+	m.phase = phaseFailed
+	m.isPlaying = false
+	m.playErr = "couldn't play stream"
+	out := stripANSI(m.nowPanel(m.contentWidth()))
+	if !strings.Contains(out, "couldn't play stream") {
+		t.Fatalf("now panel should show play error:\n%s", out)
+	}
+}
+
 // TestHomeCenteredHeroAndHint verifies the Home hero is centered (indented
 // beyond the gutter on a wide terminal) and the search hint is present.
 func TestHomeCenteredHeroAndHint(t *testing.T) {
