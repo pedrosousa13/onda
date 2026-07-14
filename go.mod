@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/minio/selfupdate v0.6.0
-	golang.org/x/mod v0.37.0
+	golang.org/x/mod v0.38.0
 )
 
 require (
