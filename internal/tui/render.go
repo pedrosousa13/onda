@@ -510,15 +510,18 @@ func (m Model) qualityChips(maxW int) string {
 	return out
 }
 
+// volumeBar renders volume as a labelled slider: a track with a knob, so it
+// reads as a continuous level rather than a stack of signal-strength bars.
 func (m Model) volumeBar() string {
 	const cells = 10
-	on := m.volume * cells / 100
-	if on > cells {
-		on = cells
+	pos := m.volume * (cells - 1) / 100
+	if pos > cells-1 {
+		pos = cells - 1
 	}
-	bar := m.st.VolOn.Render(strings.Repeat("▮", on)) +
-		m.st.VolOff.Render(strings.Repeat("▯", cells-on))
-	return bar + " " + m.st.Meta.Render(strconv.Itoa(m.volume)+"%")
+	track := m.st.VolOn.Render(strings.Repeat("─", pos)) +
+		m.st.VolOn.Render("●") +
+		m.st.VolOff.Render(strings.Repeat("─", cells-1-pos))
+	return m.st.Meta.Render("vol ") + track + " " + m.st.Meta.Render(strconv.Itoa(m.volume)+"%")
 }
 
 func (m Model) footer() string {
