@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/pedrosousa13/onda/compare/v1.6.0...v1.6.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* **release:** bump goreleaser job to Go 1.25 to match go.mod ([1113149](https://github.com/pedrosousa13/onda/commit/111314916267913b7411dd167cb688635f639486))
+
 ## [1.6.0](https://github.com/pedrosousa13/onda/compare/v1.5.1...v1.6.0) (2026-07-23)
 
 
