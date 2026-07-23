@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.6.0](https://github.com/pedrosousa13/onda/compare/v1.5.1...v1.6.0) (2026-07-23)
+
+
+### Features
+
+* **tui:** show volume as a labelled slider ([4afc02a](https://github.com/pedrosousa13/onda/commit/4afc02a63ef29c18af843c7a805797487be26580))
+
+
+### Bug Fixes
+
+* **tui:** harden playback error handling ([#44](https://github.com/pedrosousa13/onda/issues/44)) ([b7783b7](https://github.com/pedrosousa13/onda/commit/b7783b7b277bb535e84a6f4578f99bf383b6769f))
+
 ## [1.5.1](https://github.com/pedrosousa13/onda/compare/v1.5.0...v1.5.1) (2026-07-02)
 
 
